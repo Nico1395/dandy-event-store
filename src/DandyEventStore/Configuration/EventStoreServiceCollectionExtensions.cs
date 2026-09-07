@@ -1,6 +1,9 @@
 using System.Diagnostics;
 using System.Reflection;
 using DandyEventStore.Aggregates;
+using DandyEventStore.Persistence.Configuration;
+using DandyEventStore.Persistence.Connections;
+using DandyEventStore.Persistence.Sql;
 using DandyEventStore.Projections;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -41,6 +44,8 @@ public static class EventStoreServiceCollectionExtensions
                 aggregateConfiguration.FactoryType);
         }
 
+        AddPersistenceServices(services, configuration.Persistence);
+
         return services;
     }
 
@@ -77,5 +82,17 @@ public static class EventStoreServiceCollectionExtensions
                     services.AddTransient(@interface, implementationType);
             }
         }
+    }
+
+    private static void AddPersistenceServices(IServiceCollection services, PersistenceConfiguration configuration)
+    {
+        if (configuration.ConnectionFactoryType == null)
+            throw new InvalidOperationException("ConnectionFactoryType is not set.");
+
+        if (configuration.SqlStringsType == null)
+            throw new InvalidOperationException("SqlStringsType is not set.");
+
+        services.AddSingleton(typeof(IConnectionFactory), configuration.ConnectionFactoryType);
+        services.AddSingleton(typeof(SqlStrings), configuration.SqlStringsType);
     }
 }
