@@ -31,16 +31,17 @@ public class Projector(IServiceProvider serviceProvider) : IProjector
         // - Filter out projection implementations that dont have any retries left
         // - Orchestrate outbox
 
-        var projectAsync = typeof(IProjection<>).GetMethod(nameof(IProjection<>.ProjectAsync));
-        if (projectAsync == null)
-            throw new UnreachableException();
+        if (envelopes.Length == 0 || projections.Length == 0)
+            return;
 
+        var projectAsync = typeof(IProjection<>).GetMethod(nameof(IProjection<>.ProjectAsync)) ?? throw new UnreachableException();
         Type? exceptionHandlerType = null;
         MethodInfo? handleAsync = null;
 
         for (var i = 0; i < envelopes.Length; i++)
         {
             var envelope = envelopes[i];
+
             for (var j = 0; j < projections.Length; j++)
             {
                 var projection = projections[j];
