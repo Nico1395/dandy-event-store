@@ -2,6 +2,6 @@ namespace DandyEventStore.Persistence;
 
 public interface ISnapshotRepository
 {
-    Task<Snapshot?> GetLastSnapshotAsync(string streamId, long version, CancellationToken cancellationToken);
-    Task StoreAsync(Snapshot snapshot, CancellationToken cancellationToken);
+    Task<RawSnapshot?> GetLastSnapshotAsync(string streamId, long version, CancellationToken cancellationToken);
+    Task StoreAsync(RawSnapshot snapshot, CancellationToken cancellationToken);
 }
