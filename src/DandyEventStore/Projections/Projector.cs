@@ -12,7 +12,7 @@ public class Projector(IServiceProvider serviceProvider) : IProjector
 
         var genericProjectionType = mode == ProjectionMode.Immediate ? typeof(IImmediateProjection<>) : typeof(IAsyncProjection<>);
 
-        foreach (var group in envelopes.GroupBy(e => e.EventType))
+        foreach (var group in envelopes.GroupBy(e => e.RuntimeType))
         {
             var groupEnvelopes = group.ToArray();
             if (groupEnvelopes.Length == 0)
