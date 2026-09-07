@@ -12,14 +12,42 @@ public sealed class AggregatesConfiguration
 
     internal AggregateConfiguration GetOrAdd(Type aggregateType)
     {
-        return AggregateConfigs.GetOrAdd(aggregateType, CreateAggregateConfiguration);
+        return AggregateConfigs.GetOrAdd(aggregateType, type => CreateAggregateConfiguration(type, null));
     }
 
-    internal AggregateConfiguration CreateAggregateConfiguration(Type aggregateType)
+    internal AggregateConfiguration CreateAggregateConfiguration(Type aggregateType, AggregateAttribute? attribute)
     {
-        // TODO: Grab a factory method
-        // 1. Either a constructor accepting TAggregate? snapshot, Envelope[] envelopes
-        // 2. Static factory method accepting TAggregate? snapshot, Envelope[] envelopes
+        var configuration = new AggregateConfiguration
+        {
+            AggregateType = aggregateType,
+            SnapshotInterval = attribute?.SnapshotInterval,
+        };
 
+        var factoryMethod = aggregateType
+            .GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
+            .Where(method => method.IsDefined(typeof(AggregateFactoryAttribute), inherit: false))
+            .Where(method => method.ReturnType == aggregateType)
+            .SingleOrDefault(method => HasFactoryParameters(method.GetParameters(), aggregateType));
+        if (factoryMethod != null)
+        {
+            configuration.FactoryFunc = (snapshot, envelopes) => factoryMethod.Invoke(null, [snapshot, envelopes])!;
+            return configuration;
+        }
+
+        var factoryConstructor = aggregateType
+            .GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            .Where(constructor => constructor.IsDefined(typeof(AggregateFactoryAttribute), inherit: false))
+            .SingleOrDefault(constructor => HasFactoryParameters(constructor.GetParameters(), aggregateType));
+        if (factoryConstructor != null)
+            configuration.FactoryFunc = (snapshot, envelopes) => factoryConstructor.Invoke([snapshot, envelopes])!;
+
+        return configuration;
+    }
+
+    private static bool HasFactoryParameters(ParameterInfo[] parameters, Type aggregateType)
+    {
+        return parameters.Length == 2 &&
+            parameters[0].ParameterType == aggregateType &&
+            parameters[1].ParameterType == typeof(Envelope[]);
     }
 }
