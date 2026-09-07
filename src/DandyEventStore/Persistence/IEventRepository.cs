@@ -1,8 +1,8 @@
 namespace DandyEventStore.Persistence;
 
-public interface IEventStoreReader
+public interface IEventRepository
 {
     Task<long> GetCurrentVersionAsync(string streamId, CancellationToken cancellationToken);
     Task<Envelope[]> GetStreamAsync(string streamId, long? fromVersion, long? toVersion, DateTime? fromTimestamp, DateTime? toTimestamp, CancellationToken cancellationToken);
-    Task<Snapshot?> GetLastSnapshotAsync(string streamId, long version, CancellationToken cancellationToken);
+    Task StoreAsync(string streamId, Envelope[] envelopes, CancellationToken cancellationToken);
 }

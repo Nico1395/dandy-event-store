@@ -12,8 +12,8 @@ public class EventStore(
     IServiceProvider serviceProvider,
     IEnvelopeFactory envelopeFactory,
     IProjector projector,
-    IEventStoreReader eventStoreReader,
-    IEventStoreWriter eventStoreWriter) : IEventStore
+    IEventRepository eventRepository,
+    ISnapshotRepository snapshotRepository) : IEventStore
 {
     public async Task<TAggregate?> ReplayAggregateAsync<TAggregate>(string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
         where TAggregate : class
@@ -49,7 +49,7 @@ public class EventStore(
 
     public Task<Envelope[]> GetStreamAsync(string streamId, long? fromVersion, long? toVersion, DateTime? fromTimestamp, DateTime? toTimestamp, CancellationToken cancellationToken)
     {
-        return eventStoreReader.GetStreamAsync(streamId, fromVersion, toVersion, fromTimestamp, toTimestamp, cancellationToken);
+        return eventRepository.GetStreamAsync(streamId, fromVersion, toVersion, fromTimestamp, toTimestamp, cancellationToken);
     }
 
     public async Task AppendAsync(string streamId, object[] events, CancellationToken cancellationToken)
@@ -60,10 +60,10 @@ public class EventStore(
         if (string.IsNullOrWhiteSpace(streamId))
             throw new ArgumentException("Stream ID cannot be null or whitespace.", nameof(streamId));
 
-        var currentVersion = await eventStoreReader.GetCurrentVersionAsync(streamId, cancellationToken);
+        var currentVersion = await eventRepository.GetCurrentVersionAsync(streamId, cancellationToken);
         var envelopes = events.Select(e => envelopeFactory.Create(streamId, e, currentVersion++)).ToArray();
 
-        await eventStoreWriter.WriteAsync(streamId, envelopes, cancellationToken);
+        await eventRepository.StoreAsync(streamId, envelopes, cancellationToken);
         await projector.ProjectAsync(this, envelopes, ProjectionMode.Immediate, cancellationToken);
 
         // TODO: Snapshots, if configured for the stream/aggregate
@@ -75,12 +75,12 @@ public class EventStore(
 
         if (aggregateConfig.UseSnapshots())
         {
-            snapshot = await eventStoreReader.GetLastSnapshotAsync(streamId, version ?? 0, cancellationToken);
+            snapshot = await snapshotRepository.GetLastSnapshotAsync(streamId, version ?? 0, cancellationToken);
             if (snapshot != null && snapshot.AggregateType != aggregateConfig.AggregateType)
                 throw new InvalidOperationException($"Snapshot for stream {streamId} is of type {snapshot.Aggregate.GetType().FullName}, but expected {aggregateConfig.AggregateType.FullName}.");
         }
 
-        var stream = await eventStoreReader.GetStreamAsync(
+        var stream = await eventRepository.GetStreamAsync(
             streamId,
             fromVersion: snapshot?.Version,
             toVersion: version,
