@@ -7,13 +7,15 @@ public class EnvelopeFactory : IEnvelopeFactory
         // TODO:
         // - Allow mapping of event type to key
 
+        var runtimeType = @event.GetType();
         var envelope = new Envelope
         {
             StreamId = streamId,
             Event = @event,
             Timestamp = DateTime.UtcNow,
             Version = version,
-            EventTypeKey = @event.GetType().Name,
+            EventType = runtimeType.Name,
+            RuntimeType = runtimeType,
         };
 
         return envelope;
