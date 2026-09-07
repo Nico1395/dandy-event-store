@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using DandyEventStore.Aggregates;
 using DandyEventStore.Aggregates.Configuration;
 using DandyEventStore.Persistence;
@@ -18,23 +19,7 @@ public class EventStore(
         where TAggregate : class
     {
         var aggregateConfig = aggregatesConfiguration.GetOrAdd(typeof(TAggregate));
-        Snapshot? snapshot = null;
-
-        if (aggregateConfig.UseSnapshots())
-        {
-            snapshot = await eventStoreReader.GetLastSnapshotAsync(streamId, version ?? 0, cancellationToken);
-            if (snapshot is { Aggregate: not TAggregate })
-                throw new InvalidOperationException($"Snapshot for stream {streamId} is of type {snapshot.Aggregate.GetType().FullName}, but expected {typeof(TAggregate).FullName}.");
-        }
-
-        var stream = await eventStoreReader.GetStreamAsync(
-            streamId,
-            fromVersion: snapshot?.Version,
-            toVersion: version,
-            fromTimestamp: null,
-            toTimestamp: timestamp,
-            cancellationToken);
-
+        var (snapshot, stream) = await GetSnapshotAndStreamAsync(aggregateConfig, streamId, version, timestamp, cancellationToken);
         if (stream.Length == 0)
             return null;
 
@@ -45,9 +30,21 @@ public class EventStore(
         return aggregateFactory.Create(snapshot?.Aggregate as TAggregate, stream);
     }
 
-    public Task<object?> ReplayAggregateAsync(Type aggregateType, string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
+    public async Task<object?> ReplayAggregateAsync(Type aggregateType, string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        var aggregateConfig = aggregatesConfiguration.GetOrAdd(aggregateType);
+        var (snapshot, stream) = await GetSnapshotAndStreamAsync(aggregateConfig, streamId, version, timestamp, cancellationToken);
+        if (stream.Length == 0)
+            return null;
+
+        if (aggregateConfig.FactoryFunc != null)
+            return aggregateConfig.FactoryFunc(snapshot?.Aggregate, stream);
+
+        var factoryType = typeof(IAggregateFactory<>).MakeGenericType(aggregateType);
+        var factory = serviceProvider.GetRequiredService(factoryType);
+
+        var create = factoryType.GetMethod(nameof(IAggregateFactory<>.Create)) ?? throw new UnreachableException();
+        return create.Invoke(factory, [snapshot?.Aggregate, stream]);
     }
 
     public Task<Envelope[]> GetStreamAsync(string streamId, long? fromVersion, long? toVersion, DateTime? fromTimestamp, DateTime? toTimestamp, CancellationToken cancellationToken)
@@ -70,5 +67,27 @@ public class EventStore(
         await projector.ProjectAsync(this, envelopes, ProjectionMode.Immediate, cancellationToken);
 
         // TODO: Snapshots, if configured for the stream/aggregate
+    }
+
+    private async Task<(Snapshot? snapshot, Envelope[] Stream)> GetSnapshotAndStreamAsync(AggregateConfiguration aggregateConfig, string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
+    {
+        Snapshot? snapshot = null;
+
+        if (aggregateConfig.UseSnapshots())
+        {
+            snapshot = await eventStoreReader.GetLastSnapshotAsync(streamId, version ?? 0, cancellationToken);
+            if (snapshot != null && snapshot.AggregateType != aggregateConfig.AggregateType)
+                throw new InvalidOperationException($"Snapshot for stream {streamId} is of type {snapshot.Aggregate.GetType().FullName}, but expected {aggregateConfig.AggregateType.FullName}.");
+        }
+
+        var stream = await eventStoreReader.GetStreamAsync(
+            streamId,
+            fromVersion: snapshot?.Version,
+            toVersion: version,
+            fromTimestamp: null,
+            toTimestamp: timestamp,
+            cancellationToken);
+
+        return (snapshot, stream);
     }
 }
