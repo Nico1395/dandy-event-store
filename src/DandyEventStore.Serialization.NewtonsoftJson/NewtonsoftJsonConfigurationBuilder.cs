@@ -6,9 +6,9 @@ public sealed class NewtonsoftJsonConfigurationBuilder
 {
     public JsonSerializerSettings Settings { get; set; } = new();
 
-    internal NewtonsoftJsonPluginConfiguration Build()
+    internal NewtonsoftJsonConfiguration Build()
     {
-        return new NewtonsoftJsonPluginConfiguration
+        return new NewtonsoftJsonConfiguration
         {
             Settings = Settings,
         };

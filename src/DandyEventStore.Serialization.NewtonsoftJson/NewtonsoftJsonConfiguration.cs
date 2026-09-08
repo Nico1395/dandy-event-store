@@ -4,7 +4,7 @@ using Newtonsoft.Json;
 
 namespace DandyEventStore.Serialization.NewtonsoftJson;
 
-internal sealed class NewtonsoftJsonPluginConfiguration : PluginConfiguration
+internal sealed class NewtonsoftJsonConfiguration : PluginConfiguration
 {
     public override string Slot => "serialization";
     

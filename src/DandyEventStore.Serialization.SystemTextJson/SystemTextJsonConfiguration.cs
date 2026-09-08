@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DandyEventStore.Serialization.SystemTextJson;
 
-internal sealed class SystemTextJsonPluginConfiguration : PluginConfiguration
+internal sealed class SystemTextJsonConfiguration : PluginConfiguration
 {
     public override string Slot => "serialization";
 

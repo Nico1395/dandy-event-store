@@ -6,9 +6,9 @@ public sealed class SystemTextJsonConfigurationBuilder
 {
     public JsonSerializerOptions Options { get; set; } = new();
 
-    internal SystemTextJsonPluginConfiguration Build()
+    internal SystemTextJsonConfiguration Build()
     {
-        return new SystemTextJsonPluginConfiguration
+        return new SystemTextJsonConfiguration
         {
             Options = Options,
         };
