@@ -1,5 +1,3 @@
-using System.Reflection;
-
 namespace DandyEventStore.Aggregates.Configuration;
 
 public sealed class AggregatesConfigurationBuilder
@@ -11,16 +9,11 @@ public sealed class AggregatesConfigurationBuilder
     {
         var builder = new AggregateConfigurationBuilder<TAggregate>();
         builderAction(builder);
+        var configuration = builder.Build();
 
-        var aggregateConfig = builder.Build();
-        _configuration.AggregateConfigsByType[aggregateConfig.RuntimeType] = aggregateConfig;
-        
-        return this;
-    }
+        _configuration.AggregateConfigsByType[configuration.RuntimeType] = configuration;
+        _configuration.AggregateConfigsByKey[configuration.Key] = configuration;
 
-    public AggregatesConfigurationBuilder ScanInAssemblies(params Assembly[] assemblies)
-    {
-        _configuration.Assemblies = assemblies;
         return this;
     }
 

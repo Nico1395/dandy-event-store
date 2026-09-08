@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Reflection;
 using DandyEventStore.Aggregates;
 using DandyEventStore.Aggregates.Configuration;
+using DandyEventStore.Events;
+using DandyEventStore.Events.Configurations;
 using DandyEventStore.Projections;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -29,6 +31,7 @@ public static class EventStoreServiceCollectionExtensions
         if (configuration.Assemblies != null)
         {
             AddAggregatesFromAssemblies(configuration.Assemblies, configuration.Aggregates);
+            AddEventsFromAssemblies(configuration.Assemblies, configuration.Events);
             AddServicesFromAssemblies(services, configuration.Assemblies);
         }
 
@@ -61,7 +64,28 @@ public static class EventStoreServiceCollectionExtensions
                 throw new UnreachableException();
 
             var aggregateConfiguration = configuration.CreateAggregateConfiguration(aggregateType, attribute);
+
             configuration.AggregateConfigsByType[aggregateType] = aggregateConfiguration;
+            configuration.AggregateConfigsByKey[aggregateConfiguration.Key] = aggregateConfiguration;
+        }
+    }
+
+    private static void AddEventsFromAssemblies(Assembly[] assemblies, EventsConfiguration configuration)
+    {
+        var eventTypes = assemblies
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(t => t.GetCustomAttribute<EventAttribute>() != null);
+        
+        foreach (var eventType in eventTypes)
+        {
+            var attribute = eventType.GetCustomAttribute<EventAttribute>();
+            if (attribute == null)
+                throw new UnreachableException();
+
+            var eventConfiguration = configuration.CreateEventConfiguration(eventType, attribute);
+
+            configuration.EventConfigsByType[eventType] = eventConfiguration;
+            configuration.EventConfigsByKey[eventConfiguration.Key] = eventConfiguration;
         }
     }
 

@@ -8,16 +8,10 @@ public sealed class AggregatesConfiguration
 {
     internal ConcurrentDictionary<Type, AggregateConfiguration> AggregateConfigsByType { get; } = new();
     internal ConcurrentDictionary<string, AggregateConfiguration> AggregateConfigsByKey { get; } = new();
-    internal ConcurrentDictionary<Type, EventConfiguration> EventConfigsByType { get; } = new();
-    internal ConcurrentDictionary<string, EventConfiguration> EventConfigsByKey { get; } = new();
 
     public IReadOnlyDictionary<Type, AggregateConfiguration> AggregatesByType => AggregateConfigsByType;
     public IReadOnlyDictionary<string, AggregateConfiguration> AggregatesByKey => AggregateConfigsByKey;
-    public IReadOnlyDictionary<Type, EventConfiguration> EventsByType => EventConfigsByType;
-    public IReadOnlyDictionary<string, EventConfiguration> EventsByKey => EventConfigsByKey;
 
-    public Assembly[]? Assemblies { get; internal set; }
-    
     internal AggregateConfiguration GetOrAddAggregateConfig(Type aggregateType)
     {
         return AggregateConfigsByType.GetOrAdd(aggregateType, type =>
@@ -25,18 +19,6 @@ public sealed class AggregatesConfiguration
             var configuration = CreateAggregateConfiguration(type, aggregateType.GetCustomAttribute<AggregateAttribute>());
 
             AggregateConfigsByKey[configuration.Key] = configuration;
-
-            return configuration;
-        });
-    }
-
-    internal EventConfiguration GetOrAddEventConfig(Type eventType)
-    {
-        return EventConfigsByType.GetOrAdd(eventType, type =>
-        {
-            var configuration = CreateEventConfiguration(type, type.GetCustomAttribute<EventAttribute>());
-
-            EventConfigsByKey[configuration.Key] = configuration;
 
             return configuration;
         });
@@ -77,16 +59,5 @@ public sealed class AggregatesConfiguration
         return parameters.Length == 2 &&
             parameters[0].ParameterType == aggregateType &&
             parameters[1].ParameterType == typeof(Envelope[]);
-    }
-
-    internal EventConfiguration CreateEventConfiguration(Type eventType, EventAttribute? attribute)
-    {
-        var configuration = new EventConfiguration
-        {
-            Key = attribute?.Key ?? eventType.Name,
-            RuntimeType = eventType,
-        };
-
-        return configuration;
     }
 }
