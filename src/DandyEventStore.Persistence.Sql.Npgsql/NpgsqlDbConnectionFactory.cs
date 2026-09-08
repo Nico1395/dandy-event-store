@@ -3,7 +3,7 @@ using Npgsql;
 
 namespace DandyEventStore.Persistence.Sql.Npgsql;
 
-internal sealed class NpgsqlDbConnectionFactory(NpgsqlPluginConfiguration configuration) : IDbConnectionFactory
+internal sealed class NpgsqlDbConnectionFactory(NpgsqlConfiguration configuration) : IDbConnectionFactory
 {
     public IDbConnection Create()
     {

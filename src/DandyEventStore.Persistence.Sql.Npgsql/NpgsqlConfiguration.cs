@@ -4,9 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DandyEventStore.Persistence.Sql.Npgsql;
 
-internal sealed class NpgsqlPluginConfiguration : SqlPluginConfiguration
+internal sealed class NpgsqlConfiguration : SqlPluginConfiguration
 {
-    private static readonly Assembly[]? _assemblies = [typeof(SqlPluginConfiguration).Assembly, typeof(NpgsqlPluginConfiguration).Assembly];
+    private static readonly Assembly[]? _assemblies = [typeof(SqlPluginConfiguration).Assembly, typeof(NpgsqlConfiguration).Assembly];
 
     public override string Slot => "persistence";
 

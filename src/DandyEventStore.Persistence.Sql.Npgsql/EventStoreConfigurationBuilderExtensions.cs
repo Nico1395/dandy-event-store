@@ -4,9 +4,12 @@ namespace DandyEventStore.Persistence.Sql.Npgsql;
 
 public static class EventStoreConfigurationBuilderExtensions
 {
-    public static EventStoreConfigurationBuilder UseNpgsql(this EventStoreConfigurationBuilder builder)
+    public static EventStoreConfigurationBuilder UseNpgsql(this EventStoreConfigurationBuilder builder, Action<NpgsqlConfigurationBuilder>? builderAction = null)
     {
-        builder.UsePlugin(new NpgsqlPluginConfiguration());
-        return builder;
+        var configurationBuilder = new NpgsqlConfigurationBuilder();
+        builderAction?.Invoke(configurationBuilder);
+        var configuration = configurationBuilder.Build();
+
+        return builder.UsePlugin(configuration);
     }
 }

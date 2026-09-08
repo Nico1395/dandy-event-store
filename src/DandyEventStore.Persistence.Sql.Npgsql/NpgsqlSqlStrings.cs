@@ -11,15 +11,19 @@ internal sealed class NpgsqlSqlStrings : SqlStrings
                                                 """;
 
     public override string GetStream => $"""
-                                             SELECT
-                                                 {Tables.Envelopes.StreamId},
-                                                 {Tables.Envelopes.Payload},
-                                                 {Tables.Envelopes.Version},
-                                                 {Tables.Envelopes.Timestamp},
-                                                 {Tables.Envelopes.EventKey}
-                                             FROM {Schema.Name}.{Tables.Envelopes.Table}
-                                             WHERE {Tables.Envelopes.StreamId} = @StreamId
-                                         """;
+                                              SELECT
+                                                  {Tables.Envelopes.StreamId},
+                                                  {Tables.Envelopes.Payload},
+                                                  {Tables.Envelopes.Version},
+                                                  {Tables.Envelopes.Timestamp},
+                                                  {Tables.Envelopes.EventKey}
+                                              FROM {Schema.Name}.{Tables.Envelopes.Table}
+                                              WHERE {Tables.Envelopes.StreamId} = @StreamId
+                                              AND (@FromVersion IS NULL OR {Tables.Envelopes.Version} >= @FromVersion)
+                                              AND (@ToVersion IS NULL OR {Tables.Envelopes.Version} <= @ToVersion)
+                                              AND (@FromTimestamp IS NULL OR {Tables.Envelopes.Timestamp} >= @FromTimestamp)
+                                              AND (@ToTimestamp IS NULL OR {Tables.Envelopes.Timestamp} <= @ToTimestamp)
+                                          """;
 
     public override string StoreEnvelope => $"""
                                                  INSERT INTO {Schema.Name}.{Tables.Envelopes.Table} (
