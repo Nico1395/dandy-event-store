@@ -1,9 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using DandyEventStore.Aggregates;
-using DandyEventStore.Persistence.Configuration;
-using DandyEventStore.Persistence.Connections;
-using DandyEventStore.Persistence.Sql;
+using DandyEventStore.Aggregates.Configuration;
 using DandyEventStore.Projections;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -30,26 +28,27 @@ public static class EventStoreServiceCollectionExtensions
 
         if (configuration.Assemblies != null)
         {
-            AddAggregatesFromAssemblies(configuration, configuration.Assemblies);
+            AddAggregatesFromAssemblies(configuration.Assemblies, configuration.Aggregates);
             AddServicesFromAssemblies(services, configuration.Assemblies);
         }
 
-        foreach (var aggregateConfiguration in configuration.Aggregates.Aggregates.Values.Where(a => a.FactoryType != null))
+        foreach (var aggregateConfiguration in configuration.Aggregates.AggregatesByType.Values)
         {
             if (aggregateConfiguration.FactoryType == null)
-                throw new UnreachableException();
+                continue;
 
             services.AddTransient(
-                typeof(IAggregateFactory<>).MakeGenericType(aggregateConfiguration.AggregateType),
+                typeof(IAggregateFactory<>).MakeGenericType(aggregateConfiguration.RuntimeType),
                 aggregateConfiguration.FactoryType);
         }
 
-        AddPersistenceServices(services, configuration.Persistence);
+        AddAggregateFactories(services, configuration.Aggregates);
+        AddPlugins(services, configuration.Plugins);
 
         return services;
     }
 
-    private static void AddAggregatesFromAssemblies(EventStoreConfiguration configuration, Assembly[] assemblies)
+    private static void AddAggregatesFromAssemblies(Assembly[] assemblies, AggregatesConfiguration configuration)
     {
         var aggregateTypes = assemblies
             .SelectMany(assembly => assembly.GetTypes())
@@ -61,8 +60,8 @@ public static class EventStoreServiceCollectionExtensions
             if (attribute == null)
                 throw new UnreachableException();
 
-            var aggregateConfiguration = configuration.Aggregates.CreateAggregateConfiguration(aggregateType, attribute);
-            configuration.Aggregates.AggregateConfigs[aggregateType] = aggregateConfiguration;
+            var aggregateConfiguration = configuration.CreateAggregateConfiguration(aggregateType, attribute);
+            configuration.AggregateConfigsByType[aggregateType] = aggregateConfiguration;
         }
     }
 
@@ -84,15 +83,22 @@ public static class EventStoreServiceCollectionExtensions
         }
     }
 
-    private static void AddPersistenceServices(IServiceCollection services, PersistenceConfiguration configuration)
+    private static void AddAggregateFactories(IServiceCollection services, AggregatesConfiguration configuration)
     {
-        if (configuration.ConnectionFactoryType == null)
-            throw new InvalidOperationException("ConnectionFactoryType is not set.");
+        foreach (var aggregateConfiguration in configuration.AggregatesByType.Values)
+        {
+            if (aggregateConfiguration.FactoryType == null)
+                continue;
 
-        if (configuration.SqlStringsType == null)
-            throw new InvalidOperationException("SqlStringsType is not set.");
+            services.AddTransient(
+                typeof(IAggregateFactory<>).MakeGenericType(aggregateConfiguration.RuntimeType),
+                aggregateConfiguration.FactoryType);
+        }
+    }
 
-        services.AddSingleton(typeof(IConnectionFactory), configuration.ConnectionFactoryType);
-        services.AddSingleton(typeof(SqlStrings), configuration.SqlStringsType);
+    private static void AddPlugins(IServiceCollection services, IReadOnlyDictionary<string, PluginConfiguration> plugins)
+    {
+        foreach (var (_, configuration) in plugins)
+            configuration.ConfigureServices(services);
     }
 }
