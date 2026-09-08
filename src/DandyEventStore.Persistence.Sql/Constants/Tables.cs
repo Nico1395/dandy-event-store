@@ -1,4 +1,4 @@
-namespace DandyEventStore.Persistence.Constants;
+namespace DandyEventStore.Persistence.Sql.Constants;
 
 public static class Tables
 {
@@ -10,7 +10,7 @@ public static class Tables
         public const string Payload = "payload";
         public const string Version = "stream_id";
         public const string Timestamp = "timestamp";
-        public const string EventType = "event_type";
+        public const string EventKey = "event_key";
     }
 
     public static class Snapshots
@@ -21,7 +21,7 @@ public static class Tables
         public const string Payload = "payload";
         public const string Version = "stream_id";
         public const string Timestamp = "timestamp";
-        public const string AggregateType = "aggregate_type";
+        public const string AggregateKey = "aggregate_key";
     }
 
     public static class Outbox
