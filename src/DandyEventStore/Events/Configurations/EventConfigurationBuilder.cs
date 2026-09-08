@@ -1,4 +1,4 @@
-namespace DandyEventStore.Events;
+namespace DandyEventStore.Events.Configurations;
 
 public sealed class EventConfigurationBuilder<TEvent>
     where TEvent : class

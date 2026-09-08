@@ -1,8 +1,8 @@
-namespace DandyEventStore.Events;
+namespace DandyEventStore.Events.Configurations;
 
 public sealed class EventsConfigurationBuilder
 {
-    private readonly List<EventConfiguration> _events = [];
+    private readonly EventsConfiguration _configuration = new();
     
     public EventsConfigurationBuilder AddEvent<TEvent>(Action<EventConfigurationBuilder<TEvent>> builderAction)
         where TEvent : class
@@ -11,16 +11,14 @@ public sealed class EventsConfigurationBuilder
         builderAction(builder);
         var configuration = builder.Build();
 
-        _events.Add(configuration);
+        _configuration.EventConfigsByType[configuration.RuntimeType] = configuration;
+        _configuration.EventConfigsByKey[configuration.Key] = configuration;
 
         return this;
     }
 
     internal EventsConfiguration Build()
     {
-        return new EventsConfiguration
-        {
-            Events = _events.ToArray(),
-        };
+        return _configuration;
     }
 }
