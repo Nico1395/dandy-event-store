@@ -7,8 +7,15 @@ public sealed class AggregateConfigurationBuilder<TAggregate>
 {
     private readonly AggregateConfiguration _configuration = new()
     {
-        AggregateType = typeof(TAggregate),
+        Key = typeof(TAggregate).Name,
+        RuntimeType = typeof(TAggregate),
     };
+
+    public AggregateConfigurationBuilder<TAggregate> WithKey(string key)
+    {
+        _configuration.Key = key;
+        return this;
+    }
 
     public AggregateConfigurationBuilder<TAggregate> UseSnapshots(int interval)
     {

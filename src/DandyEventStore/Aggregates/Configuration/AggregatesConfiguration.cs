@@ -1,25 +1,53 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using DandyEventStore.Events;
 
 namespace DandyEventStore.Aggregates.Configuration;
 
 public sealed class AggregatesConfiguration
 {
-    internal ConcurrentDictionary<Type, AggregateConfiguration> AggregateConfigs { get; } = new();
+    internal ConcurrentDictionary<Type, AggregateConfiguration> AggregateConfigsByType { get; } = new();
+    internal ConcurrentDictionary<string, AggregateConfiguration> AggregateConfigsByKey { get; } = new();
+    internal ConcurrentDictionary<Type, EventConfiguration> EventConfigsByType { get; } = new();
+    internal ConcurrentDictionary<string, EventConfiguration> EventConfigsByKey { get; } = new();
 
-    public IReadOnlyDictionary<Type, AggregateConfiguration> Aggregates => AggregateConfigs;
+    public IReadOnlyDictionary<Type, AggregateConfiguration> AggregatesByType => AggregateConfigsByType;
+    public IReadOnlyDictionary<string, AggregateConfiguration> AggregatesByKey => AggregateConfigsByKey;
+    public IReadOnlyDictionary<Type, EventConfiguration> EventsByType => EventConfigsByType;
+    public IReadOnlyDictionary<string, EventConfiguration> EventsByKey => EventConfigsByKey;
+
     public Assembly[]? Assemblies { get; internal set; }
-
-    internal AggregateConfiguration GetOrAdd(Type aggregateType)
+    
+    internal AggregateConfiguration GetOrAddAggregateConfig(Type aggregateType)
     {
-        return AggregateConfigs.GetOrAdd(aggregateType, type => CreateAggregateConfiguration(type, null));
+        return AggregateConfigsByType.GetOrAdd(aggregateType, type =>
+        {
+            var configuration = CreateAggregateConfiguration(type, aggregateType.GetCustomAttribute<AggregateAttribute>());
+
+            AggregateConfigsByKey[configuration.Key] = configuration;
+
+            return configuration;
+        });
+    }
+
+    internal EventConfiguration GetOrAddEventConfig(Type eventType)
+    {
+        return EventConfigsByType.GetOrAdd(eventType, type =>
+        {
+            var configuration = CreateEventConfiguration(type, type.GetCustomAttribute<EventAttribute>());
+
+            EventConfigsByKey[configuration.Key] = configuration;
+
+            return configuration;
+        });
     }
 
     internal AggregateConfiguration CreateAggregateConfiguration(Type aggregateType, AggregateAttribute? attribute)
     {
         var configuration = new AggregateConfiguration
         {
-            AggregateType = aggregateType,
+            Key = attribute?.Key ?? aggregateType.Name,
+            RuntimeType = aggregateType,
             SnapshotInterval = attribute?.SnapshotInterval,
         };
 
@@ -49,5 +77,16 @@ public sealed class AggregatesConfiguration
         return parameters.Length == 2 &&
             parameters[0].ParameterType == aggregateType &&
             parameters[1].ParameterType == typeof(Envelope[]);
+    }
+
+    internal EventConfiguration CreateEventConfiguration(Type eventType, EventAttribute? attribute)
+    {
+        var configuration = new EventConfiguration
+        {
+            Key = attribute?.Key ?? eventType.Name,
+            RuntimeType = eventType,
+        };
+
+        return configuration;
     }
 }

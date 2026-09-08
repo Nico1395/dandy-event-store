@@ -13,7 +13,7 @@ public sealed class AggregatesConfigurationBuilder
         builderAction(builder);
 
         var aggregateConfig = builder.Build();
-        _configuration.AggregateConfigs[aggregateConfig.AggregateType] = aggregateConfig;
+        _configuration.AggregateConfigsByType[aggregateConfig.RuntimeType] = aggregateConfig;
         
         return this;
     }
