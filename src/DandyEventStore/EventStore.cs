@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using DandyEventStore.Aggregates;
 using DandyEventStore.Aggregates.Configuration;
+using DandyEventStore.Configuration;
 using DandyEventStore.Persistence;
 using DandyEventStore.Projections;
 using DandyEventStore.Serialization;
@@ -9,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace DandyEventStore;
 
 public class EventStore(
-    AggregatesConfiguration aggregatesConfiguration,
+    EventStoreConfiguration eventStoreConfiguration,
     IServiceProvider serviceProvider,
     IEnvelopeFactory envelopeFactory,
     IProjector projector,
@@ -20,13 +21,13 @@ public class EventStore(
     public async Task<TAggregate?> ReplayAggregateAsync<TAggregate>(string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
         where TAggregate : class
     {
-        var aggregateConfig = aggregatesConfiguration.GetOrAdd(typeof(TAggregate));
-        var (snapshot, stream) = await GetSnapshotAndStreamAsync(aggregateConfig, streamId, version, timestamp, cancellationToken);
+        var configuration = eventStoreConfiguration.Aggregates.GetOrAddAggregateConfig(typeof(TAggregate));
+        var (snapshot, stream) = await GetSnapshotAndStreamAsync(configuration, streamId, version, timestamp, cancellationToken);
         if (stream.Length == 0)
             return null;
 
-        if (aggregateConfig.FactoryFunc != null)
-            return aggregateConfig.FactoryFunc(snapshot?.Aggregate, stream) as TAggregate;
+        if (configuration.FactoryFunc != null)
+            return configuration.FactoryFunc(snapshot?.Aggregate, stream) as TAggregate;
 
         var aggregateFactory = serviceProvider.GetRequiredService<IAggregateFactory<TAggregate>>();
         return aggregateFactory.Create(snapshot?.Aggregate as TAggregate, stream);
@@ -34,13 +35,13 @@ public class EventStore(
 
     public async Task<object?> ReplayAggregateAsync(Type aggregateType, string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
     {
-        var aggregateConfig = aggregatesConfiguration.GetOrAdd(aggregateType);
-        var (snapshot, stream) = await GetSnapshotAndStreamAsync(aggregateConfig, streamId, version, timestamp, cancellationToken);
+        var configuration = eventStoreConfiguration.Aggregates.GetOrAddAggregateConfig(aggregateType);
+        var (snapshot, stream) = await GetSnapshotAndStreamAsync(configuration, streamId, version, timestamp, cancellationToken);
         if (stream.Length == 0)
             return null;
 
-        if (aggregateConfig.FactoryFunc != null)
-            return aggregateConfig.FactoryFunc(snapshot?.Aggregate, stream);
+        if (configuration.FactoryFunc != null)
+            return configuration.FactoryFunc(snapshot?.Aggregate, stream);
 
         var factoryType = typeof(IAggregateFactory<>).MakeGenericType(aggregateType);
         var factory = serviceProvider.GetRequiredService(factoryType);
@@ -54,16 +55,14 @@ public class EventStore(
         var rawEnvelopes = await eventRepository.GetStreamAsync(streamId, fromVersion, toVersion, fromTimestamp, toTimestamp, cancellationToken);
         var envelopes = rawEnvelopes.Select(r =>
         {
-            var eventType = EventTypeProvider.Get(r.EventType);
-            return new Envelope
-            {
-                StreamId = r.StreamId,
-                Event = eventStoreSerializer.Deserialize(r.Payload, eventType),
-                Version = r.Version,
-                Timestamp = r.Timestamp,
-                EventType = r.EventType,
-                RuntimeType = eventType,
-            };
+            if (!eventStoreConfiguration.Events.EventConfigsByKey.TryGetValue(r.EventKey, out var configuration))
+                throw new InvalidOperationException($"Event type {r.EventKey} is not configured.");
+
+            var @event = eventStoreSerializer.Deserialize(r.Payload, configuration.RuntimeType);
+            if (@event == null)
+                throw new InvalidOperationException($"Failed to deserialize event {r.EventKey} from payload.");
+
+            return envelopeFactory.Create(r.StreamId, @event, r.Version);
         });
 
         return envelopes.ToArray();
@@ -79,15 +78,13 @@ public class EventStore(
 
         var currentVersion = await eventRepository.GetStreamVersionAsync(streamId, cancellationToken);
         var envelopes = events.Select(e => envelopeFactory.Create(streamId, e, currentVersion++)).ToArray();
-
-        // TODO: Maybe create raw envelopes directly
         var rawEnvelopes = envelopes.Select(e => new RawEnvelope
         {
             StreamId = e.StreamId,
-            Payload = eventStoreSerializer.Serialize(e.Event),
+            Payload = eventStoreSerializer.Serialize(e.Event, e.RuntimeType),
             Version = e.Version,
             Timestamp = e.Timestamp,
-            EventType = e.EventType,
+            EventKey = e.EventKey,
         });
 
         await eventRepository.StoreAsync(streamId, rawEnvelopes.ToArray(), cancellationToken);
@@ -96,25 +93,28 @@ public class EventStore(
         // TODO: Snapshots, if configured for the stream/aggregate
     }
 
-    private async Task<(Snapshot? snapshot, Envelope[] Stream)> GetSnapshotAndStreamAsync(AggregateConfiguration aggregateConfig, string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
+    private async Task<(Snapshot? snapshot, Envelope[] Stream)> GetSnapshotAndStreamAsync(AggregateConfiguration configuration, string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
     {
         Snapshot? snapshot = null;
-        if (aggregateConfig.UseSnapshots())
+        if (configuration.UseSnapshots())
         {
             var rawSnapshot = await snapshotRepository.GetLastSnapshotAsync(streamId, version ?? 0, cancellationToken);
             if (rawSnapshot != null)
             {
+                var aggregate = eventStoreSerializer.Deserialize(rawSnapshot.Payload, configuration.RuntimeType);
                 snapshot = new Snapshot
                 {
                     StreamId = rawSnapshot.StreamId,
                     Version = rawSnapshot.Version,
                     Timestamp = rawSnapshot.Timestamp,
-                    Aggregate = eventStoreSerializer.Deserialize(rawSnapshot.Payload, aggregateConfig.AggregateType),
+                    Aggregate = aggregate,
+                    AggregateKey = rawSnapshot.AggregateKey,
+                    RuntimeType = configuration.RuntimeType,
                 };
             }
 
-            if (snapshot != null && snapshot.AggregateType != aggregateConfig.AggregateType)
-                throw new InvalidOperationException($"Snapshot for stream {streamId} is of type {snapshot.Aggregate.GetType().FullName}, but expected {aggregateConfig.AggregateType.FullName}.");
+            if (snapshot != null && snapshot.RuntimeType != configuration.RuntimeType)
+                throw new InvalidOperationException($"Snapshot for stream {streamId} is of type {snapshot.Aggregate.GetType().FullName}, but expected {configuration.RuntimeType.FullName}.");
         }
 
         var stream = await GetStreamAsync(
