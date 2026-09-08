@@ -1,7 +1,6 @@
-using DandyEventStore.Persistence.Constants;
-using DandyEventStore.Persistence.Sql;
+using DandyEventStore.Persistence.Sql.Constants;
 
-namespace DandyEventStore.Persistence.Npgsql;
+namespace DandyEventStore.Persistence.Sql.Npgsql;
 
 internal sealed class NpgsqlSqlStrings : SqlStrings
 {
@@ -17,7 +16,7 @@ internal sealed class NpgsqlSqlStrings : SqlStrings
                                                  {Tables.Envelopes.Payload},
                                                  {Tables.Envelopes.Version},
                                                  {Tables.Envelopes.Timestamp},
-                                                 {Tables.Envelopes.EventType}
+                                                 {Tables.Envelopes.EventKey}
                                              FROM {Schema.Name}.{Tables.Envelopes.Table}
                                              WHERE {Tables.Envelopes.StreamId} = @StreamId
                                          """;
@@ -28,13 +27,13 @@ internal sealed class NpgsqlSqlStrings : SqlStrings
                                                      {Tables.Envelopes.Payload},
                                                      {Tables.Envelopes.Version},
                                                      {Tables.Envelopes.Timestamp},
-                                                     {Tables.Envelopes.EventType})
+                                                     {Tables.Envelopes.EventKey})
                                                  VALUES (
                                                      @StreamId,
                                                      @Payload,
                                                      @Version,
                                                      @Timestamp,
-                                                     @EventType)
+                                                     @EventKey)
                                              """;
 
     public override string GetLastSnapshot => $"""
@@ -43,7 +42,7 @@ internal sealed class NpgsqlSqlStrings : SqlStrings
                                                        {Tables.Snapshots.Payload},
                                                        {Tables.Snapshots.Version},
                                                        {Tables.Snapshots.Timestamp},
-                                                       {Tables.Snapshots.AggregateType}
+                                                       {Tables.Snapshots.AggregateKey}
                                                    FROM {Schema.Name}.{Tables.Snapshots.Table}
                                                    WHERE {Tables.Snapshots.Version} <= @Version && {Tables.Snapshots.StreamId} = @StreamId
                                                    ORDER BY {Tables.Snapshots.Version} DESC
@@ -56,12 +55,12 @@ internal sealed class NpgsqlSqlStrings : SqlStrings
                                                      {Tables.Snapshots.Payload},
                                                      {Tables.Snapshots.Version},
                                                      {Tables.Snapshots.Timestamp},
-                                                     {Tables.Snapshots.AggregateType})
+                                                     {Tables.Snapshots.AggregateKey})
                                                  VALUES (
                                                      @StreamId,
                                                      @Payload,
                                                      @Version,
                                                      @Timestamp,
-                                                     @AggregateType)
+                                                     @AggregateKey)
                                              """;
 }
