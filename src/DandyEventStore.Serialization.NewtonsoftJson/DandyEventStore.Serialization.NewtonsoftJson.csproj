@@ -4,4 +4,8 @@
       <ProjectReference Include="..\DandyEventStore\DandyEventStore.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="Newtonsoft.Json" />
+    </ItemGroup>
+
 </Project>
