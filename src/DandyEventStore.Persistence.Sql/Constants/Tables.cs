@@ -8,7 +8,7 @@ public static class Tables
 
         public const string StreamId = "stream_id";
         public const string Payload = "payload";
-        public const string Version = "stream_id";
+        public const string Version = "version";
         public const string Timestamp = "timestamp";
         public const string EventKey = "event_key";
     }
@@ -19,7 +19,7 @@ public static class Tables
 
         public const string StreamId = "stream_id";
         public const string Payload = "payload";
-        public const string Version = "stream_id";
+        public const string Version = "version";
         public const string Timestamp = "timestamp";
         public const string AggregateKey = "aggregate_key";
     }

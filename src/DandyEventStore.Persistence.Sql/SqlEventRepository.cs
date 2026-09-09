@@ -23,7 +23,7 @@ internal sealed class SqlEventRepository(
             FromTimestamp = fromTimestamp,
             ToTimestamp = toTimestamp,
         });
-
+        
         return raw.ToArray();
     }
 
@@ -33,6 +33,15 @@ internal sealed class SqlEventRepository(
             return;
 
         using var connection = dbConnectionFactory.CreateAndOpen();
-        await connection.ExecuteAsync(sqlStrings.StoreEnvelope, envelopes.ToArray());
+        var parameters = envelopes.Select(e => new
+        {
+            StreamId = e.StreamId,
+            Version = e.Version,
+            Timestamp = e.Timestamp,
+            EventKey = e.EventKey,
+            Payload = e.Payload,
+        });
+
+        await connection.ExecuteAsync(sqlStrings.StoreEnvelope, parameters);
     }
 }
