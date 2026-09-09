@@ -17,6 +17,12 @@ public sealed class EventsConfigurationBuilder
         return this;
     }
 
+    public EventsConfigurationBuilder WithDefaultLifetime(TimeSpan lifetime)
+    {
+        _configuration.DefaultLifetime = lifetime;
+        return this;
+    }
+
     internal EventsConfiguration Build()
     {
         return _configuration;

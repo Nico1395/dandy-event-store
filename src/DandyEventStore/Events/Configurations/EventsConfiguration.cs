@@ -11,6 +11,8 @@ public sealed class EventsConfiguration
     public IReadOnlyDictionary<Type, EventConfiguration> EventsByType => EventConfigsByType;
     public IReadOnlyDictionary<string, EventConfiguration> EventsByKey => EventConfigsByKey;
 
+    public TimeSpan DefaultLifetime { get; set; } = TimeSpan.FromMinutes(15);
+
     internal EventConfiguration GetOrAddEventConfig(Type eventType)
     {
         return EventConfigsByType.GetOrAdd(eventType, type =>
