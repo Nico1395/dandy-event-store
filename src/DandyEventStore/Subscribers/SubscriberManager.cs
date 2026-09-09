@@ -1,90 +1,44 @@
 using System.Diagnostics;
 using System.Reflection;
+using DandyEventStore.Configuration;
+using DandyEventStore.Outbox;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DandyEventStore.Subscribers;
 
-internal sealed class SubscriberManager(IServiceProvider serviceProvider) : ISubscriberManager
+internal sealed class SubscriberManager(
+    EventStoreConfiguration eventStoreConfiguration,
+    IServiceProvider serviceProvider) : ISubscriberManager
 {
-    public async Task NotifySubscribersAsync(IReadOnlyEventStore? eventStore, Envelope[] envelopes, SubscriberMode mode, CancellationToken cancellationToken)
+    public async Task NotifySyncSubscribersAsync(OutboxEnvelope outboxEnvelope, CancellationToken cancellationToken)
     {
-        eventStore ??= serviceProvider.GetRequiredService<IReadOnlyEventStore>();
-        var genericSubscriberInterface = mode == SubscriberMode.Async ? typeof(IAsyncSubscriber<>) : typeof(ISubscriber<>);
+        var syncSubscriberType = typeof(ISubscriber<>).MakeGenericType(outboxEnvelope.RuntimeType);
+        MethodInfo? handleAsync = null;
 
-        foreach (var group in envelopes.GroupBy(e => e.RuntimeType))
+        var subscribers = serviceProvider.GetServices(syncSubscriberType);
+        foreach (var subscriber in subscribers.Where(s => s != null))
         {
-            var groupEnvelopes = group.ToArray();
-            if (groupEnvelopes.Length == 0)
-                continue;
+            var consumerKey = subscriber!.GetType().Name;
 
-            var subscriberType = genericSubscriberInterface.MakeGenericType(group.Key);
-            var subscribers = serviceProvider.GetServices(subscriberType).Cast<object>().ToArray();
-
-            await OrchestrateSubscribersAsync(eventStore, group.Key, groupEnvelopes, subscribers, cancellationToken);
-        }
-    }
-
-    private async Task OrchestrateSubscribersAsync(IReadOnlyEventStore eventStore, Type eventType, Envelope[] envelopes, object[] subscribers, CancellationToken cancellationToken)
-    {
-        if (envelopes.Length == 0 || subscribers.Length == 0)
-            return;
-
-        var handleAsync = typeof(ISubscriber<>).GetMethod(nameof(ISubscriber<>.HandleAsync));
-        if (handleAsync == null)
-            throw new UnreachableException($"The subscriber abstraction was expected to have a method '{nameof(ISubscriber<>.HandleAsync)}'.");
-
-        Type? exceptionHandlerType = null;
-        MethodInfo? handleExceptionAsync = null;
-
-        foreach (var envelope in envelopes)
-        {
-            foreach (var subscriber in subscribers)
+            try
             {
-                exceptionHandlerType ??= typeof(ISubscriberExceptionHandler<>).MakeGenericType(eventType);
-                handleExceptionAsync ??= exceptionHandlerType.GetMethod(nameof(ISubscriberExceptionHandler<>.HandleAsync));
+                handleAsync ??= syncSubscriberType.GetMethod(nameof(ISubscriber<>.HandleAsync));
+                if (handleAsync == null)
+                    throw new UnreachableException($"Subscribers of type '{syncSubscriberType}' should have a method '{nameof(ISubscriber<>.HandleAsync)}'.");
 
-                if (handleExceptionAsync == null)
-                    throw new UnreachableException($"Subscriber exception handler {exceptionHandlerType.FullName} does not have a method '{nameof(ISubscriberExceptionHandler<>.HandleAsync)}' even though it implements {typeof(ISubscriberExceptionHandler<>)}.");
+                var context = new SubscriberContext { Event = outboxEnvelope, };
+                if (handleAsync.Invoke(subscriber, [outboxEnvelope, context, cancellationToken]) is not Task task)
+                    throw new InvalidOperationException($"Subscriber of type '{syncSubscriberType}' should return a Task.");
 
-                await InvokeSubscriberAsync(
-                    eventStore,
-                    subscriber,
-                    envelope,
-                    handleAsync,
-                    exceptionHandlerType,
-                    handleExceptionAsync,
-                    cancellationToken);
+                await task;
+
+                outboxEnvelope.Consume(consumerKey, OutboxEventConsumerType.Subscriber);
             }
-        }
-    }
-
-    private async Task InvokeSubscriberAsync(IReadOnlyEventStore eventStore, object subscriber, Envelope envelope, MethodInfo handleAsync, Type exceptionHandlerType, MethodInfo handleExceptionAsync, CancellationToken cancellationToken)
-    {
-        var context = new SubscriberContext
-        {
-            EventStore = eventStore,
-            Envelope = envelope,
-        };
-
-        try
-        {
-            var result = handleAsync.Invoke(subscriber, [envelope.Event, context, cancellationToken]);
-            if (result is not Task task)
-                throw new UnreachableException($"Subscriber {subscriber.GetType().FullName} did not return a {typeof(Task)}.");
-
-            await task;
-        }
-        catch (Exception ex)
-        {
-            var exceptionHandler = serviceProvider.GetService(exceptionHandlerType);
-            if (exceptionHandler == null)
-                return;
-
-            var result = handleExceptionAsync.Invoke(exceptionHandler, [envelope.Event, context, ex, cancellationToken]);
-            if (result is not Task task)
-                throw new UnreachableException($"Subscriber exception handler {exceptionHandlerType.FullName} did not return a {typeof(Task)}.");
-
-            await task;
+            catch (Exception ex)
+            {
+                outboxEnvelope.Fail(consumerKey, OutboxEventConsumerType.Subscriber);
+                eventStoreConfiguration.OnOutboxPublishException?.Invoke(serviceProvider, ex);
+            }
         }
     }
 }

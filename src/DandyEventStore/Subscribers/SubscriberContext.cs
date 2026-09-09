@@ -1,9 +1,10 @@
+using DandyEventStore.Outbox;
+
 namespace DandyEventStore.Subscribers;
 
 public sealed class SubscriberContext
 {
-    public required IReadOnlyEventStore EventStore { get; init; }
-    public required Envelope Envelope { get; init; }
+    public required IReadOnlyOutboxEvent Event { get; init; }
 
     // public required int MaxRetries { get; init; }
     // public required int RetryCount { get; init; }
