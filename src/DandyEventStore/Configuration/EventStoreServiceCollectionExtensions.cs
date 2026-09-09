@@ -13,7 +13,8 @@ public static class EventStoreServiceCollectionExtensions
 {
     private static readonly IReadOnlyList<Type> _serviceTypes =
     [
-        typeof(IProjection<>),
+        typeof(IImmediateProjection<>),
+        typeof(IAsyncProjection<>),
         typeof(IProjectionExceptionHandler<>),
         typeof(IAggregateFactory<>),
     ];
@@ -26,6 +27,7 @@ public static class EventStoreServiceCollectionExtensions
 
         services.AddSingleton(configuration);
         services.AddSingleton<IEventStore, EventStore>();
+        services.AddSingleton<IEnvelopeFactory, EnvelopeFactory>();
         services.AddSingleton<IProjector, Projector>();
 
         if (configuration.Assemblies != null)
