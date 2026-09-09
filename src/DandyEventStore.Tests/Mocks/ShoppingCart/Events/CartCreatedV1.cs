@@ -1,6 +1,6 @@
 using DandyEventStore.Events;
 
-namespace DandyEventStore.Tests.Mocks.ShoppingCart;
+namespace DandyEventStore.Tests.Mocks.ShoppingCart.Events;
 
 [Event]
 internal sealed record CartCreatedV1(
