@@ -4,7 +4,7 @@ using DandyEventStore.Aggregates;
 using DandyEventStore.Aggregates.Configuration;
 using DandyEventStore.Events;
 using DandyEventStore.Events.Configurations;
-using DandyEventStore.Projections;
+using DandyEventStore.Subscribers;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DandyEventStore.Configuration;
@@ -13,9 +13,8 @@ public static class EventStoreServiceCollectionExtensions
 {
     private static readonly IReadOnlyList<Type> _serviceTypes =
     [
-        typeof(IImmediateProjection<>),
-        typeof(IAsyncProjection<>),
-        typeof(IProjectionExceptionHandler<>),
+        typeof(ISubscriber<>),
+        typeof(ISubscriberExceptionHandler<>),
         typeof(IAggregateFactory<>),
     ];
 
@@ -28,7 +27,7 @@ public static class EventStoreServiceCollectionExtensions
         services.AddSingleton(configuration);
         services.AddSingleton<IEventStore, EventStore>();
         services.AddSingleton<IEnvelopeFactory, EnvelopeFactory>();
-        services.AddSingleton<IProjector, Projector>();
+        services.AddSingleton<ISubscriberManager, SubscriberManager>();
 
         if (configuration.Assemblies != null)
         {

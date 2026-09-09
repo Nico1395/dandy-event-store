@@ -3,8 +3,8 @@ using DandyEventStore.Aggregates;
 using DandyEventStore.Aggregates.Configuration;
 using DandyEventStore.Configuration;
 using DandyEventStore.Persistence;
-using DandyEventStore.Projections;
 using DandyEventStore.Serialization;
+using DandyEventStore.Subscribers;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DandyEventStore;
@@ -13,7 +13,7 @@ public class EventStore(
     EventStoreConfiguration eventStoreConfiguration,
     IServiceProvider serviceProvider,
     IEnvelopeFactory envelopeFactory,
-    IProjector projector,
+    ISubscriberManager subscriberManager,
     IEventStoreSerializer eventStoreSerializer,
     IEventRepository eventRepository,
     ISnapshotRepository snapshotRepository) : IEventStore
@@ -88,7 +88,7 @@ public class EventStore(
         });
 
         await eventRepository.StoreAsync(streamId, rawEnvelopes.ToArray(), cancellationToken);
-        await projector.ProjectAsync(this, envelopes, ProjectionMode.Immediate, cancellationToken);
+        await subscriberManager.NotifySubscribersAsync(this, envelopes, SubscriberMode.Sync, cancellationToken);
 
         // TODO: Snapshots, if configured for the stream/aggregate
     }
