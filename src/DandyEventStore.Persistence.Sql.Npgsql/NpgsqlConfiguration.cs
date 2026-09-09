@@ -6,7 +6,7 @@ namespace DandyEventStore.Persistence.Sql.Npgsql;
 
 internal sealed class NpgsqlConfiguration : SqlPluginConfiguration
 {
-    private static readonly Assembly[]? _assemblies = [typeof(SqlPluginConfiguration).Assembly, typeof(NpgsqlConfiguration).Assembly];
+    private static readonly Assembly[]? _assemblies = [typeof(NpgsqlConfiguration).Assembly];
 
     public override string Slot => "persistence";
 
