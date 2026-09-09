@@ -1,0 +1,70 @@
+using DandyEventStore.Persistence.Sql.Constants;
+
+namespace DandyEventStore.Persistence.Sql.SQLite;
+
+internal sealed class SqliteSqlStrings : SqlStrings
+{
+    public override string GetStreamVersion => $"""
+                                                    SELECT MAX(Version)
+                                                    FROM {Tables.Envelopes.Table}
+                                                    WHERE {Tables.Envelopes.StreamId} = @StreamId
+                                                """;
+
+    public override string GetStream => $"""
+                                              SELECT
+                                                  {Tables.Envelopes.StreamId} AS StreamId,
+                                                  {Tables.Envelopes.Payload} AS Payload,
+                                                  {Tables.Envelopes.Version} AS Version,
+                                                  {Tables.Envelopes.Timestamp} AS Timestamp,
+                                                  {Tables.Envelopes.EventKey} AS EventKey
+                                              FROM {Tables.Envelopes.Table}
+                                              WHERE {Tables.Envelopes.StreamId} = @StreamId
+                                              AND (@FromVersion IS NULL OR {Tables.Envelopes.Version} >= @FromVersion)
+                                              AND (@ToVersion IS NULL OR {Tables.Envelopes.Version} <= @ToVersion)
+                                              AND (@FromTimestamp IS NULL OR {Tables.Envelopes.Timestamp} >= @FromTimestamp)
+                                              AND (@ToTimestamp IS NULL OR {Tables.Envelopes.Timestamp} <= @ToTimestamp)
+                                          """;
+
+    public override string StoreEnvelope => $"""
+                                                 INSERT INTO {Tables.Envelopes.Table} (
+                                                     {Tables.Envelopes.StreamId},
+                                                     {Tables.Envelopes.Version},
+                                                     {Tables.Envelopes.Timestamp},
+                                                     {Tables.Envelopes.EventKey},
+                                                     {Tables.Envelopes.Payload})
+                                                 VALUES (
+                                                     @StreamId,
+                                                     @Version,
+                                                     @Timestamp,
+                                                     @EventKey,
+                                                     @Payload)
+                                             """;
+
+    public override string GetLastSnapshot => $"""
+                                                   SELECT
+                                                       {Tables.Snapshots.StreamId} AS StreamId,
+                                                       {Tables.Snapshots.Payload} AS Payload,
+                                                       {Tables.Snapshots.Version} AS Version,
+                                                       {Tables.Snapshots.Timestamp} AS Timestamp,
+                                                       {Tables.Snapshots.AggregateKey} AS AggregateKey
+                                                   FROM {Tables.Snapshots.Table}
+                                                   WHERE {Tables.Snapshots.Version} <= @Version && {Tables.Snapshots.StreamId} = @StreamId
+                                                   ORDER BY {Tables.Snapshots.Version} DESC
+                                                   LIMIT 1
+                                               """;
+
+    public override string StoreSnapshot => $"""
+                                                 INSERT INTO {Tables.Snapshots.Table} (
+                                                     {Tables.Snapshots.StreamId},
+                                                     {Tables.Snapshots.Payload},
+                                                     {Tables.Snapshots.Version},
+                                                     {Tables.Snapshots.Timestamp},
+                                                     {Tables.Snapshots.AggregateKey})
+                                                 VALUES (
+                                                     @StreamId,
+                                                     @Payload,
+                                                     @Version,
+                                                     @Timestamp,
+                                                     @AggregateKey)
+                                             """;
+}
