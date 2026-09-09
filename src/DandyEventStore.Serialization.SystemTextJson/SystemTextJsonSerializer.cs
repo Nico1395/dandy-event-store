@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace DandyEventStore.Serialization.SystemTextJson;
 
-internal sealed class SystemTextJsonEventStoreSerializer(SystemTextJsonConfiguration configuration) : IEventStoreSerializer
+internal sealed class SystemTextJsonSerializer(SystemTextJsonConfiguration configuration) : ISerializer
 {
     public string Serialize(object eventItem, Type runtimeType)
     {

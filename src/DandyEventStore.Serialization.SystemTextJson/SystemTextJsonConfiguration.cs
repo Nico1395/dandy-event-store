@@ -12,7 +12,7 @@ internal sealed class SystemTextJsonConfiguration : PluginConfiguration
 
     public override void ConfigureServices(IServiceCollection services)
     {
-        services.AddSingleton<IEventStoreSerializer, SystemTextJsonEventStoreSerializer>();
+        services.AddSingleton<ISerializer, SystemTextJsonSerializer>();
         services.AddSingleton(this);
     }
 }

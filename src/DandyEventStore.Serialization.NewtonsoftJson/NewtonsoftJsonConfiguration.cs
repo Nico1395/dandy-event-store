@@ -12,7 +12,7 @@ internal sealed class NewtonsoftJsonConfiguration : PluginConfiguration
 
     public override void ConfigureServices(IServiceCollection services)
     {
-        services.AddSingleton<IEventStoreSerializer, NewtonsoftJsonEventStoreSerializer>();
+        services.AddSingleton<ISerializer, NewtonsoftJsonSerializer>();
         services.AddSingleton(this);
     }
 }

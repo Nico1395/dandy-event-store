@@ -2,7 +2,7 @@ using Newtonsoft.Json;
 
 namespace DandyEventStore.Serialization.NewtonsoftJson;
 
-internal sealed class NewtonsoftJsonEventStoreSerializer(NewtonsoftJsonConfiguration configuration) : IEventStoreSerializer
+internal sealed class NewtonsoftJsonSerializer(NewtonsoftJsonConfiguration configuration) : ISerializer
 {
     public string Serialize(object eventItem, Type runtimeType)
     {
