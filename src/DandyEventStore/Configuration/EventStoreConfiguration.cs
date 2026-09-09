@@ -11,4 +11,7 @@ public sealed class EventStoreConfiguration
     public required EventsConfiguration Events { get; init; }
     public required IReadOnlyDictionary<string, PluginConfiguration> Plugins { get; init; }
     public Assembly[]? Assemblies { get; init; }
+    
+    public Action<IServiceProvider, Exception>? OnOutboxPublishException { get; set; }
+    public Action<IServiceProvider, Exception>? OnSubscriberException { get; set; }
 }

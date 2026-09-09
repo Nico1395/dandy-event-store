@@ -4,6 +4,7 @@ using DandyEventStore.Aggregates;
 using DandyEventStore.Aggregates.Configuration;
 using DandyEventStore.Events;
 using DandyEventStore.Events.Configurations;
+using DandyEventStore.Outbox;
 using DandyEventStore.Subscribers;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -28,6 +29,7 @@ public static class EventStoreServiceCollectionExtensions
         services.AddSingleton<IEventStore, EventStore>();
         services.AddSingleton<IEnvelopeFactory, EnvelopeFactory>();
         services.AddSingleton<ISubscriberManager, SubscriberManager>();
+        services.AddSingleton<IOutbox, Outbox.Outbox>();
 
         if (configuration.Assemblies != null)
         {

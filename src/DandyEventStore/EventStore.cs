@@ -2,6 +2,7 @@ using System.Diagnostics;
 using DandyEventStore.Aggregates;
 using DandyEventStore.Aggregates.Configuration;
 using DandyEventStore.Configuration;
+using DandyEventStore.Outbox;
 using DandyEventStore.Persistence;
 using DandyEventStore.Serialization;
 using DandyEventStore.Subscribers;
@@ -14,6 +15,7 @@ public class EventStore(
     IServiceProvider serviceProvider,
     IEnvelopeFactory envelopeFactory,
     ISubscriberManager subscriberManager,
+    IOutbox outbox,
     IEventStoreSerializer eventStoreSerializer,
     IEventRepository eventRepository,
     ISnapshotRepository snapshotRepository) : IEventStore
@@ -88,7 +90,9 @@ public class EventStore(
         });
 
         await eventRepository.StoreAsync(streamId, rawEnvelopes.ToArray(), cancellationToken);
-        await subscriberManager.NotifySubscribersAsync(this, envelopes, SubscriberMode.Sync, cancellationToken);
+        await outbox.PublishAsync(streamId, envelopes, cancellationToken);
+
+        // await subscriberManager.NotifySyncSubscribersAsync(this, envelopes, cancellationToken);
 
         // TODO: Snapshots, if configured for the stream/aggregate
     }
@@ -102,15 +106,18 @@ public class EventStore(
             if (rawSnapshot != null)
             {
                 var aggregate = eventStoreSerializer.Deserialize(rawSnapshot.Payload, configuration.RuntimeType);
-                snapshot = new Snapshot
+                if (aggregate != null)
                 {
-                    StreamId = rawSnapshot.StreamId,
-                    Version = rawSnapshot.Version,
-                    Timestamp = rawSnapshot.Timestamp,
-                    Aggregate = aggregate,
-                    AggregateKey = rawSnapshot.AggregateKey,
-                    RuntimeType = configuration.RuntimeType,
-                };
+                    snapshot = new Snapshot
+                    {
+                        StreamId = rawSnapshot.StreamId,
+                        Version = rawSnapshot.Version,
+                        Timestamp = rawSnapshot.Timestamp,
+                        Aggregate = aggregate,
+                        AggregateKey = rawSnapshot.AggregateKey,
+                        RuntimeType = configuration.RuntimeType,
+                    };
+                }
             }
 
             if (snapshot != null && snapshot.RuntimeType != configuration.RuntimeType)
