@@ -25,7 +25,7 @@ internal sealed class NpgsqlSqlStrings : SqlStrings
                                               AND (@ToTimestamp IS NULL OR {Tables.Envelopes.Timestamp} <= @ToTimestamp)
                                           """;
 
-    public override string StoreEnvelope => $"""
+    public override string InsertEnvelope => $"""
                                                  INSERT INTO {Schema.Name}.{Tables.Envelopes.Table} (
                                                      {Tables.Envelopes.StreamId},
                                                      {Tables.Envelopes.Payload},
@@ -67,4 +67,9 @@ internal sealed class NpgsqlSqlStrings : SqlStrings
                                                      @Timestamp,
                                                      @AggregateKey)
                                              """;
+
+    public override string GetOutboxEnvelopes { get; }
+    public override string InsertOutboxEnvelopes { get; }
+    public override string DeleteOutboxEnvelopes { get; }
+    public override string InsertOutboxEnvelopeConsumers { get; }
 }

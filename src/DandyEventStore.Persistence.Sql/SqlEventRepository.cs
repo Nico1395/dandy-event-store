@@ -42,6 +42,6 @@ internal sealed class SqlEventRepository(
             Payload = e.Payload,
         });
 
-        await connection.ExecuteAsync(sqlStrings.StoreEnvelope, parameters);
+        await connection.ExecuteAsync(sqlStrings.InsertEnvelope, parameters);
     }
 }
