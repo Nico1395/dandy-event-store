@@ -9,7 +9,6 @@
         <PackageReference Include="Microsoft.NET.Test.Sdk"/>
         <PackageReference Include="xunit"/>
         <PackageReference Include="xunit.runner.visualstudio"/>
-        <PackageReference Include="Testcontainers.PostgreSql"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -17,7 +16,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\DandyEventStore.Persistence.Sql.Npgsql\DandyEventStore.Persistence.Sql.Npgsql.csproj" />
+      <ProjectReference Include="..\DandyEventStore.Persistence.Sql.SQLite\DandyEventStore.Persistence.Sql.SQLite.csproj" />
       <ProjectReference Include="..\DandyEventStore.Serialization.SystemTextJson\DandyEventStore.Serialization.SystemTextJson.csproj" />
     </ItemGroup>
 
