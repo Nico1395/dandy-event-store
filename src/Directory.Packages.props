@@ -1,21 +1,22 @@
 <Project>
-    <PropertyGroup>
-        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-    </PropertyGroup>
-
-    <ItemGroup>
-        <PackageVersion Include="Dapper" Version="2.1.79" />
-        <PackageVersion Include="FluentMigrator.Extensions.Postgres" Version="8.0.1" />
-        <PackageVersion Include="FluentMigrator.Runner.Core" Version="8.0.1" />
-        <PackageVersion Include="FluentMigrator.Runner.Postgres" Version="8.0.1" />
-        <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
-        <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
-        <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
-        <PackageVersion Include="Npgsql" Version="10.0.3" />
-        <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
-        <PackageVersion Include="coverlet.collector" Version="6.0.4"/>
-        <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1"/>
-        <PackageVersion Include="xunit" Version="2.9.3"/>
-        <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4"/>
-    </ItemGroup>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Dapper" Version="2.1.79" />
+    <PackageVersion Include="FluentMigrator.Extensions.Postgres" Version="8.0.1" />
+    <PackageVersion Include="FluentMigrator.Runner.Core" Version="8.0.1" />
+    <PackageVersion Include="FluentMigrator.Runner.Postgres" Version="8.0.1" />
+    <PackageVersion Include="FluentMigrator.Runner.SQLite" Version="8.0.1" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageVersion Include="Npgsql" Version="10.0.3" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
 </Project>

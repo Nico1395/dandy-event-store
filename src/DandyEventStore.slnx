@@ -4,6 +4,7 @@
     <File Path="Directory.Packages.props" />
   </Folder>
   <Project Path="DandyEventStore.Persistence.Sql.Npgsql\DandyEventStore.Persistence.Sql.Npgsql.csproj" />
+  <Project Path="DandyEventStore.Persistence.Sql.SQLite/DandyEventStore.Persistence.Sql.SQLite.csproj" />
   <Project Path="DandyEventStore.Persistence.Sql/DandyEventStore.Persistence.Sql.csproj" />
   <Project Path="DandyEventStore.Serialization.NewtonsoftJson/DandyEventStore.Serialization.NewtonsoftJson.csproj" />
   <Project Path="DandyEventStore.Serialization.SystemTextJson/DandyEventStore.Serialization.SystemTextJson.csproj" />
