@@ -8,13 +8,21 @@ internal sealed class SnapshotRepository(
 {
     public async Task<RawSnapshot?> GetLastSnapshotAsync(string streamId, long version, CancellationToken cancellationToken)
     {
-        var raw = await connectionContext.Connection.QueryAsync<RawSnapshot>(sqlStrings.GetLastSnapshot, new { StreamId = streamId });
+        var raw = await connectionContext.Connection.QueryAsync<RawSnapshot>(new CommandDefinition(
+            sqlStrings.GetLastSnapshot,
+            new { StreamId = streamId, Version = version },
+            transaction: connectionContext.Transaction,
+            cancellationToken: cancellationToken));
 
         return raw.FirstOrDefault();
     }
 
     public async Task InsertAsync(RawSnapshot snapshot, CancellationToken cancellationToken)
     {
-        await connectionContext.Connection.ExecuteAsync(sqlStrings.StoreSnapshot, snapshot);
+        await connectionContext.Connection.ExecuteAsync(new CommandDefinition(
+            sqlStrings.StoreSnapshot,
+            snapshot,
+            transaction: connectionContext.Transaction,
+            cancellationToken: cancellationToken));
     }
 }
