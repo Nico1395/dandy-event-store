@@ -22,6 +22,7 @@ public sealed class EventStoreConfiguration
 
     public Action<IServiceProvider, SubscriberConfiguration, SubscriberContext, Exception>? OnOutboxPublishException { get; set; }
     public Action<IServiceProvider, Exception>? OnSubscriberException { get; set; }
+    public Action<IServiceProvider, Exception>? OnDaemonIterationException { get; set; }
 
     internal IReadOnlyDictionary<string, PluginConfiguration> Plugins { get; init; } = new Dictionary<string, PluginConfiguration>();
 }

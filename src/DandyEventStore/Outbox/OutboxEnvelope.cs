@@ -61,4 +61,9 @@ public sealed class OutboxEnvelope : IReadOnlyOutboxEnvelope
 
         consumer.Fail();
     }
+
+    public bool HasConsumed(string consumerKey)
+    {
+        return Consumers.Any(c => c.ConsumerKey == consumerKey && c.ConsumedAt.HasValue);
+    }
 }

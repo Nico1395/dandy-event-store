@@ -1,8 +1,8 @@
-using System.Diagnostics;
 using System.Reflection;
 using DandyEventStore.Configuration.Aggregates;
 using DandyEventStore.Configuration.Events;
 using DandyEventStore.Configuration.Subscribers;
+using DandyEventStore.Outbox;
 using DandyEventStore.Subscribers;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -27,6 +27,9 @@ public static class EventStoreServiceCollectionExtensions
         services.AddScoped<IEventStore, EventStore>();
         services.AddScoped<ISubscriptionManager, SubscriptionManager>();
         services.AddSingleton<IEnvelopeFactory, EnvelopeFactory>();
+
+        if (configuration.Outbox.DaemonEnabled)
+            services.AddHostedService<AsyncOutboxDaemon>();
 
         if (configuration.Assemblies != null)
         {
