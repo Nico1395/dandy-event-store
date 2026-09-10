@@ -1,7 +1,7 @@
 using DandyEventStore.Persistence.Sql.Constants;
 using FluentMigrator;
 
-namespace DandyEventStore.Persistence.Migrations;
+namespace DandyEventStore.Persistence.Sql.Npgsql.Migrations;
 
 [Migration(20260907191400, "Creating schema and tables")]
 public class Migration_20260907191400 : Migration
