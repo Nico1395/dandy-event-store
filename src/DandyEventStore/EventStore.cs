@@ -16,9 +16,7 @@ internal sealed class EventStore(
     IEnvelopeFactory envelopeFactory,
     ISubscriberManager subscriberManager,
     ISerializer serializer,
-    IOutboxEnvelopeRepository outboxEnvelopeRepository,
-    IEventRepository eventRepository,
-    ISnapshotRepository snapshotRepository) : IEventStore
+    IUnitOfWork unitOfWork) : IEventStore
 {
     public async Task<TAggregate?> ReplayAggregateAsync<TAggregate>(string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
         where TAggregate : class
@@ -54,7 +52,7 @@ internal sealed class EventStore(
 
     public async Task<Envelope[]> GetStreamAsync(string streamId, long? fromVersion, long? toVersion, DateTime? fromTimestamp, DateTime? toTimestamp, CancellationToken cancellationToken)
     {
-        var rawEnvelopes = await eventRepository.GetStreamAsync(streamId, fromVersion, toVersion, fromTimestamp, toTimestamp, cancellationToken);
+        var rawEnvelopes = await unitOfWork.Envelopes.GetStreamAsync(streamId, fromVersion, toVersion, fromTimestamp, toTimestamp, cancellationToken);
         var envelopes = rawEnvelopes.Select(r =>
         {
             if (!eventStoreConfiguration.Events.EventConfigsByKey.TryGetValue(r.EventKey, out var configuration))
@@ -79,7 +77,7 @@ internal sealed class EventStore(
             throw new ArgumentException("Stream ID cannot be null or whitespace.", nameof(streamId));
 
         // 1. Create envelopes
-        var currentVersion = await eventRepository.GetStreamVersionAsync(streamId, cancellationToken);
+        var currentVersion = await unitOfWork.Envelopes.GetStreamVersionAsync(streamId, cancellationToken);
         var envelopes = events.Select(e => envelopeFactory.Create(streamId, e, currentVersion++)).ToArray();
         var rawEnvelopes = envelopes.Select(e => new RawEnvelope
         {
@@ -90,39 +88,26 @@ internal sealed class EventStore(
             EventKey = e.EventKey,
         });
 
-        // 2. Create a transaction if persistence implementations use SQL databases
-        var transactionFactory = serviceProvider.GetService<ITransactionFactory>();
-        await using var transaction = transactionFactory?.Create();
-        var transactionalEventRepository = transaction?.EventRepository ?? eventRepository;
-        var transactionalOutboxRepository = transaction?.OutboxEnvelopeRepository ?? outboxEnvelopeRepository;
-
         // 3. Insert events
-        await transactionalEventRepository.InsertAsync(streamId, rawEnvelopes.ToArray(), cancellationToken);
+        await unitOfWork.Envelopes.InsertAsync(streamId, rawEnvelopes.ToArray(), cancellationToken);
 
         // 4. Insert outbox envelopes
         var outboxEnvelopes = envelopes.Select(OutboxEnvelope.Create).ToArray();
-        await transactionalOutboxRepository.InsertEnvelopesAsync(GetRaw(outboxEnvelopes).ToArray(), cancellationToken);
+        await unitOfWork.Outbox.InsertEnvelopesAsync(GetRaw(outboxEnvelopes).ToArray(), cancellationToken);
 
         // 5. Create and insert a snapshot if configured
         // TODO
 
         // 6. Commit transaction so event-store and outbox are in sync. Consumers should not be in this transaction.
-        if (transaction != null)
-            await transaction.CommitAsync(cancellationToken);
+        await unitOfWork.CommitAsync(cancellationToken);
 
         // 7. Notify sync subscribers
         foreach (var outboxEnvelope in outboxEnvelopes)
             await subscriberManager.NotifySyncSubscribersAsync(outboxEnvelope, cancellationToken);
 
-        // 8. Insert an outbox envelope consumer for every sync subscriber
-        await using var consumerTransaction = transactionFactory?.Create();
-        var consumerOutboxRepository = consumerTransaction?.OutboxEnvelopeRepository ?? outboxEnvelopeRepository;
-
         var consumers = outboxEnvelopes.SelectMany(e => e.Consumers);
-        await consumerOutboxRepository.InsertConsumersAsync(GetRaw(consumers).ToArray(), cancellationToken);
-
-        if (consumerTransaction != null)
-            await consumerTransaction.CommitAsync(cancellationToken);
+        await unitOfWork.Outbox.InsertConsumersAsync(GetRaw(consumers).ToArray(), cancellationToken);
+        await unitOfWork.CommitAsync(cancellationToken);
     }
 
     private async Task<(Snapshot? snapshot, Envelope[] Stream)> GetSnapshotAndStreamAsync(AggregateConfiguration configuration, string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
@@ -130,7 +115,7 @@ internal sealed class EventStore(
         Snapshot? snapshot = null;
         if (configuration.UseSnapshots())
         {
-            var rawSnapshot = await snapshotRepository.GetLastSnapshotAsync(streamId, version ?? 0, cancellationToken);
+            var rawSnapshot = await unitOfWork.Snapshots.GetLastSnapshotAsync(streamId, version ?? 0, cancellationToken);
             if (rawSnapshot != null)
             {
                 var aggregate = serializer.Deserialize(rawSnapshot.Payload, configuration.RuntimeType);

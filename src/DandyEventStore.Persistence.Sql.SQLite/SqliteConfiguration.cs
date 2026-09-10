@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DandyEventStore.Persistence.Sql.SQLite;
 
-internal sealed class SqliteConfiguration : SqlPluginConfiguration
+internal sealed class SqliteConfiguration : PersistenceConfiguration
 {
     private static readonly Assembly[]? _assemblies = [typeof(SqliteConfiguration).Assembly];
 

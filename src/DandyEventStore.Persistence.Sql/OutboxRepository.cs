@@ -1,35 +1,18 @@
-using System.Data;
 using DandyEventStore.Outbox;
 using Dapper;
 
 namespace DandyEventStore.Persistence.Sql;
 
-public class SqlOutboxEnvelopeRepository : IOutboxEnvelopeRepository
+internal sealed class OutboxRepository(
+    SqlStrings sqlStrings,
+    UnitOfWorkContext connectionContext) : IOutboxRepository
 {
-    private readonly SqlStrings _sqlStrings;
-    private readonly IDbConnectionFactory? _dbConnectionFactory;
-    private readonly IDbConnection? _connection;
-    private readonly IDbTransaction? _transaction;
-
-    public SqlOutboxEnvelopeRepository(SqlStrings sqlStrings, IDbConnectionFactory dbConnectionFactory)
-    {
-        _sqlStrings = sqlStrings;
-        _dbConnectionFactory = dbConnectionFactory;
-    }
-
-    public SqlOutboxEnvelopeRepository(SqlStrings sqlStrings, IDbConnection connection, IDbTransaction transaction)
-    {
-        _sqlStrings = sqlStrings;
-        _connection = connection;
-        _transaction = transaction;
-    }
-
     public async Task<RawOutboxEnvelope[]> GetEnvelopesAsync(CancellationToken cancellationToken)
     {
-        using var ownedConnection = OpenConnection();
-        var connection = _connection ?? ownedConnection;
-        var rows = await connection.QueryAsync<RawOutboxEnvelopeRow>(
-            new CommandDefinition(_sqlStrings.GetOutboxEnvelopes, transaction: _transaction, cancellationToken: cancellationToken));
+        var rows = await connectionContext.Connection.QueryAsync<RawOutboxEnvelopeRow>(new CommandDefinition(
+            sqlStrings.GetOutboxEnvelopes,
+            transaction: connectionContext.Transaction,
+            cancellationToken: cancellationToken));
 
         return RowsToEnvelopes(rows).ToArray();
     }
@@ -39,8 +22,6 @@ public class SqlOutboxEnvelopeRepository : IOutboxEnvelopeRepository
         if (events.Length == 0)
             return;
 
-        using var ownedConnection = OpenConnection();
-        var connection = _connection ?? ownedConnection;
         var parameters = events.Select(e => new
         {
             e.StreamId,
@@ -50,10 +31,10 @@ public class SqlOutboxEnvelopeRepository : IOutboxEnvelopeRepository
             e.EventKey,
         });
 
-        await connection.ExecuteAsync(new CommandDefinition(
-            _sqlStrings.InsertOutboxEnvelopes,
+        await connectionContext.Connection.ExecuteAsync(new CommandDefinition(
+            sqlStrings.InsertOutboxEnvelopes,
             parameters,
-            transaction: _transaction,
+            transaction: connectionContext.Transaction,
             cancellationToken: cancellationToken));
     }
 
@@ -62,18 +43,16 @@ public class SqlOutboxEnvelopeRepository : IOutboxEnvelopeRepository
         if (events.Length == 0)
             return;
 
-        using var ownedConnection = OpenConnection();
-        var connection = _connection ?? ownedConnection;
         var parameters = events.Select(e => new
         {
             e.StreamId,
             e.Version,
         });
 
-        await connection.ExecuteAsync(new CommandDefinition(
-            _sqlStrings.DeleteOutboxEnvelopes,
+        await connectionContext.Connection.ExecuteAsync(new CommandDefinition(
+            sqlStrings.DeleteOutboxEnvelopes,
             parameters,
-            transaction: _transaction,
+            transaction: connectionContext.Transaction,
             cancellationToken: cancellationToken));
     }
 
@@ -82,8 +61,6 @@ public class SqlOutboxEnvelopeRepository : IOutboxEnvelopeRepository
         if (consumers.Length == 0)
             return;
 
-        using var ownedConnection = OpenConnection();
-        var connection = _connection ?? ownedConnection;
         var parameters = consumers.Select(c => new
         {
             c.StreamId,
@@ -94,16 +71,11 @@ public class SqlOutboxEnvelopeRepository : IOutboxEnvelopeRepository
             c.FailedAt,
         });
 
-        await connection.ExecuteAsync(new CommandDefinition(
-            _sqlStrings.InsertOutboxEnvelopeConsumers,
+        await connectionContext.Connection.ExecuteAsync(new CommandDefinition(
+            sqlStrings.InsertOutboxEnvelopeConsumers,
             parameters,
-            transaction: _transaction,
+            transaction: connectionContext.Transaction,
             cancellationToken: cancellationToken));
-    }
-
-    private IDbConnection? OpenConnection()
-    {
-        return _connection == null ? _dbConnectionFactory!.CreateAndOpen() : null;
     }
 
     private static IEnumerable<RawOutboxEnvelope> RowsToEnvelopes(IEnumerable<RawOutboxEnvelopeRow> rows)

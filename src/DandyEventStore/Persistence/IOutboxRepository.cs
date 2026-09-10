@@ -2,7 +2,7 @@ using DandyEventStore.Outbox;
 
 namespace DandyEventStore.Persistence;
 
-public interface IOutboxEnvelopeRepository
+public interface IOutboxRepository
 {
     Task<RawOutboxEnvelope[]> GetEnvelopesAsync(CancellationToken cancellationToken); 
     Task InsertEnvelopesAsync(RawOutboxEnvelope[] events, CancellationToken cancellationToken);

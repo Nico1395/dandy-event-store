@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DandyEventStore.Persistence.Sql.Npgsql;
 
-internal sealed class NpgsqlConfiguration : SqlPluginConfiguration
+internal sealed class NpgsqlConfiguration : PersistenceConfiguration
 {
     private static readonly Assembly[]? _assemblies = [typeof(NpgsqlConfiguration).Assembly];
 
