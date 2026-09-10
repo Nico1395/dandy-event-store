@@ -45,6 +45,16 @@ internal sealed class SubscriptionManager(
             catch (Exception exception)
             {
                 outboxEnvelope.Fail(configuration.Key, OutboxEventConsumerType.Subscriber);
+
+                var exceptionHandlerType = typeof(ISubscriberExceptionHandler<>).MakeGenericType(outboxEnvelope.RuntimeType);
+                var exceptionHandler = serviceProvider.GetService(exceptionHandlerType);
+                if (exceptionHandler != null)
+                {
+                    var handleExceptionAsync = exceptionHandlerType.GetMethod(nameof(ISubscriberExceptionHandler<>.HandleAsync));
+                    if (handleExceptionAsync?.Invoke(exceptionHandler, [outboxEnvelope.Event, context, exception, cancellationToken]) is Task task)
+                        await task;
+                }
+
                 eventStoreConfiguration.OnOutboxPublishException?.Invoke(serviceProvider, configuration, context, exception);
             }
         }
