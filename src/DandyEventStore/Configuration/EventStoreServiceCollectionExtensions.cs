@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Reflection;
 using DandyEventStore.Configuration.Aggregates;
 using DandyEventStore.Configuration.Events;
+using DandyEventStore.Configuration.Subscribers;
 using DandyEventStore.Subscribers;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,7 +13,6 @@ public static class EventStoreServiceCollectionExtensions
     private static readonly IReadOnlyList<Type> _serviceTypes =
     [
         typeof(ISubscriber<>),
-        typeof(IAsyncSubscriber<>),
         typeof(ISubscriberExceptionHandler<>),
         typeof(IAggregateFactory<>),
     ];
@@ -32,6 +32,7 @@ public static class EventStoreServiceCollectionExtensions
         {
             AddAggregatesFromAssemblies(configuration.Assemblies, configuration.Aggregates);
             AddEventsFromAssemblies(configuration.Assemblies, configuration.Events);
+            AddSubscribersFromAssemblies(configuration.Assemblies, configuration.Subscribers);
             AddServicesFromAssemblies(services, configuration.Assemblies);
         }
 
@@ -58,16 +59,7 @@ public static class EventStoreServiceCollectionExtensions
             .Where(t => t.GetCustomAttribute<AggregateAttribute>() != null);
 
         foreach (var aggregateType in aggregateTypes)
-        {
-            var attribute = aggregateType.GetCustomAttribute<AggregateAttribute>();
-            if (attribute == null)
-                throw new UnreachableException();
-
-            var aggregateConfiguration = configuration.CreateAggregateConfiguration(aggregateType, attribute);
-
-            configuration.AggregateConfigsByType[aggregateType] = aggregateConfiguration;
-            configuration.AggregateConfigsByKey[aggregateConfiguration.Key] = aggregateConfiguration;
-        }
+            configuration.GetOrAddAggregateConfiguration(aggregateType);
     }
 
     private static void AddEventsFromAssemblies(Assembly[] assemblies, EventsConfiguration configuration)
@@ -77,16 +69,17 @@ public static class EventStoreServiceCollectionExtensions
             .Where(t => t.GetCustomAttribute<EventAttribute>() != null);
         
         foreach (var eventType in eventTypes)
-        {
-            var attribute = eventType.GetCustomAttribute<EventAttribute>();
-            if (attribute == null)
-                throw new UnreachableException();
+            configuration.GetOrAddEventConfiguration(eventType);
+    }
 
-            var eventConfiguration = configuration.CreateEventConfiguration(eventType, attribute);
-
-            configuration.EventConfigsByType[eventType] = eventConfiguration;
-            configuration.EventConfigsByKey[eventConfiguration.Key] = eventConfiguration;
-        }
+    private static void AddSubscribersFromAssemblies(Assembly[] assemblies, SubscribersConfiguration configuration)
+    {
+        var subscriberTypes = assemblies
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(t => t.GetCustomAttribute<SubscriberAttribute>() != null);
+        
+        foreach (var subscriberType in subscriberTypes)
+            configuration.GetOrAddSubscriberConfiguration(subscriberType);
     }
 
     private static void AddServicesFromAssemblies(IServiceCollection services, IReadOnlyList<Assembly> assemblies)

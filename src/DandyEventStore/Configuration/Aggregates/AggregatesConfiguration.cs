@@ -11,15 +11,12 @@ public sealed class AggregatesConfiguration
     public IReadOnlyDictionary<Type, AggregateConfiguration> AggregatesByType => AggregateConfigsByType;
     public IReadOnlyDictionary<string, AggregateConfiguration> AggregatesByKey => AggregateConfigsByKey;
 
-    internal AggregateConfiguration GetOrAddAggregateConfig(Type aggregateType)
+    internal AggregateConfiguration GetOrAddAggregateConfiguration(Type aggregateType)
     {
         return AggregateConfigsByType.GetOrAdd(aggregateType, type =>
         {
             var configuration = CreateAggregateConfiguration(type, aggregateType.GetCustomAttribute<AggregateAttribute>());
-
-            AggregateConfigsByKey[configuration.Key] = configuration;
-
-            return configuration;
+            return AggregateConfigsByKey[configuration.Key] = configuration;
         });
     }
 
