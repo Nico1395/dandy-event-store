@@ -1,6 +1,8 @@
-namespace DandyEventStore.Outbox;
+using DandyEventStore.Outbox;
 
-public sealed class RawOutboxEnvelopeConsumer
+namespace DandyEventStore.Persistence.Entities;
+
+public sealed class OutboxEnvelopeConsumerEntity
 {
     public required string StreamId { get; init; }
     public required long Version { get; init; }

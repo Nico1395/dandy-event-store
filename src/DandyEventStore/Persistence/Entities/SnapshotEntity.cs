@@ -1,6 +1,6 @@
-namespace DandyEventStore.Persistence;
+namespace DandyEventStore.Persistence.Entities;
 
-public sealed class RawSnapshot
+public sealed class SnapshotEntity
 {
     public required string StreamId { get; init; }
     public required string Payload { get; init; }
