@@ -1,4 +1,4 @@
-namespace DandyEventStore.Aggregates;
+namespace DandyEventStore;
 
 [AttributeUsage(AttributeTargets.Class)]
 public sealed class AggregateAttribute : Attribute

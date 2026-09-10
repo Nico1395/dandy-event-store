@@ -1,8 +1,7 @@
 using System.Collections.Concurrent;
 using System.Reflection;
-using DandyEventStore.Events;
 
-namespace DandyEventStore.Aggregates.Configuration;
+namespace DandyEventStore.Configuration.Aggregates;
 
 public sealed class AggregatesConfiguration
 {

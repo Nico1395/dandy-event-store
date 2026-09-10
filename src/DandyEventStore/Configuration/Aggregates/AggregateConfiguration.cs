@@ -1,4 +1,4 @@
-namespace DandyEventStore.Aggregates.Configuration;
+namespace DandyEventStore.Configuration.Aggregates;
 
 public sealed class AggregateConfiguration
 {

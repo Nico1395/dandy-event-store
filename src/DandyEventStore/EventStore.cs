@@ -1,7 +1,6 @@
 using System.Diagnostics;
-using DandyEventStore.Aggregates;
-using DandyEventStore.Aggregates.Configuration;
 using DandyEventStore.Configuration;
+using DandyEventStore.Configuration.Aggregates;
 using DandyEventStore.Outbox;
 using DandyEventStore.Persistence;
 using DandyEventStore.Serialization;

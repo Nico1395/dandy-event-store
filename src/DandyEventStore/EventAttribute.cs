@@ -1,4 +1,4 @@
-namespace DandyEventStore.Events;
+namespace DandyEventStore;
 
 [AttributeUsage(AttributeTargets.Class)]
 public sealed class EventAttribute : Attribute

@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Reflection;
 
-namespace DandyEventStore.Events.Configurations;
+namespace DandyEventStore.Configuration.Events;
 
 public sealed class EventsConfiguration
 {

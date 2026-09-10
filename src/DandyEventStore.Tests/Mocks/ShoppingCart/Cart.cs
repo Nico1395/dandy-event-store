@@ -1,4 +1,3 @@
-using DandyEventStore.Aggregates;
 using DandyEventStore.Tests.Mocks.ShoppingCart.Events;
 
 namespace DandyEventStore.Tests.Mocks.ShoppingCart;

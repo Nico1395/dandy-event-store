@@ -1,21 +1,26 @@
 using System.Reflection;
-using DandyEventStore.Aggregates.Configuration;
-using DandyEventStore.Events;
-using DandyEventStore.Events.Configurations;
+using DandyEventStore.Configuration.Aggregates;
+using DandyEventStore.Configuration.Events;
+using DandyEventStore.Configuration.Outbox;
 
 namespace DandyEventStore.Configuration;
 
 public sealed class EventStoreConfigurationBuilder
 {
-    private Dictionary<string, PluginConfiguration> Plugins { get; set; } = [];
+    private readonly Dictionary<string, PluginConfiguration> _plugins = [];
 
     public AggregatesConfigurationBuilder Aggregates { get; } = new();
     public EventsConfigurationBuilder Events { get; } = new();
+    public OutboxConfigurationBuilder Outbox { get; } = new();
+
     public Assembly[]? Assemblies { get; set; }
+
+    public Action<IServiceProvider, Exception>? OnOutboxPublishException { get; set; }
+    public Action<IServiceProvider, Exception>? OnSubscriberException { get; set; }
 
     public EventStoreConfigurationBuilder UsePlugin(PluginConfiguration plugin)
     {
-        Plugins[plugin.Slot] = plugin;
+        _plugins[plugin.Slot] = plugin;
         return this;
     }
 
@@ -31,8 +36,11 @@ public sealed class EventStoreConfigurationBuilder
         {
             Aggregates = Aggregates.Build(),
             Events = Events.Build(),
-            Plugins = Plugins,
+            Outbox = Outbox.Build(),
+            Plugins = _plugins,
             Assemblies = Assemblies,
+            OnOutboxPublishException = OnOutboxPublishException,
+            OnSubscriberException = OnSubscriberException,
         };
     }
 }

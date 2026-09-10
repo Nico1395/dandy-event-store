@@ -1,10 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
-using DandyEventStore.Aggregates;
-using DandyEventStore.Aggregates.Configuration;
-using DandyEventStore.Events;
-using DandyEventStore.Events.Configurations;
-using DandyEventStore.Outbox;
+using DandyEventStore.Configuration.Aggregates;
+using DandyEventStore.Configuration.Events;
 using DandyEventStore.Subscribers;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,6 +12,7 @@ public static class EventStoreServiceCollectionExtensions
     private static readonly IReadOnlyList<Type> _serviceTypes =
     [
         typeof(ISubscriber<>),
+        typeof(IAsyncSubscriber<>),
         typeof(ISubscriberExceptionHandler<>),
         typeof(IAggregateFactory<>),
     ];

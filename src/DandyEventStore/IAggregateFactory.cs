@@ -1,4 +1,4 @@
-namespace DandyEventStore.Aggregates;
+namespace DandyEventStore;
 
 public interface IAggregateFactory<TAggregate>
     where TAggregate : class
