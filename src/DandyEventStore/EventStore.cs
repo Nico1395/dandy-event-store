@@ -10,13 +10,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DandyEventStore;
 
-public class EventStore(
+internal sealed class EventStore(
     EventStoreConfiguration eventStoreConfiguration,
     IServiceProvider serviceProvider,
     IEnvelopeFactory envelopeFactory,
     ISubscriberManager subscriberManager,
-    IOutbox outbox,
-    IEventStoreSerializer eventStoreSerializer,
+    ISerializer serializer,
+    IOutboxEnvelopeRepository outboxEnvelopeRepository,
     IEventRepository eventRepository,
     ISnapshotRepository snapshotRepository) : IEventStore
 {
@@ -60,7 +60,7 @@ public class EventStore(
             if (!eventStoreConfiguration.Events.EventConfigsByKey.TryGetValue(r.EventKey, out var configuration))
                 throw new InvalidOperationException($"Event type {r.EventKey} is not configured.");
 
-            var @event = eventStoreSerializer.Deserialize(r.Payload, configuration.RuntimeType);
+            var @event = serializer.Deserialize(r.Payload, configuration.RuntimeType);
             if (@event == null)
                 throw new InvalidOperationException($"Failed to deserialize event {r.EventKey} from payload.");
 
@@ -78,23 +78,51 @@ public class EventStore(
         if (string.IsNullOrWhiteSpace(streamId))
             throw new ArgumentException("Stream ID cannot be null or whitespace.", nameof(streamId));
 
+        // 1. Create envelopes
         var currentVersion = await eventRepository.GetStreamVersionAsync(streamId, cancellationToken);
         var envelopes = events.Select(e => envelopeFactory.Create(streamId, e, currentVersion++)).ToArray();
         var rawEnvelopes = envelopes.Select(e => new RawEnvelope
         {
             StreamId = e.StreamId,
-            Payload = eventStoreSerializer.Serialize(e.Event, e.RuntimeType),
+            Payload = serializer.Serialize(e.Event, e.RuntimeType),
             Version = e.Version,
             Timestamp = e.Timestamp,
             EventKey = e.EventKey,
         });
 
-        await eventRepository.StoreAsync(streamId, rawEnvelopes.ToArray(), cancellationToken);
-        await outbox.PublishAsync(streamId, envelopes, cancellationToken);
+        // 2. Create a transaction if persistence implementations use SQL databases
+        var transactionFactory = serviceProvider.GetService<ITransactionFactory>();
+        await using var transaction = transactionFactory?.Create();
+        var transactionalEventRepository = transaction?.EventRepository ?? eventRepository;
+        var transactionalOutboxRepository = transaction?.OutboxEnvelopeRepository ?? outboxEnvelopeRepository;
 
-        // await subscriberManager.NotifySyncSubscribersAsync(this, envelopes, cancellationToken);
+        // 3. Insert events
+        await transactionalEventRepository.InsertAsync(streamId, rawEnvelopes.ToArray(), cancellationToken);
 
-        // TODO: Snapshots, if configured for the stream/aggregate
+        // 4. Insert outbox envelopes
+        var outboxEnvelopes = envelopes.Select(OutboxEnvelope.Create).ToArray();
+        await transactionalOutboxRepository.InsertEnvelopesAsync(GetRaw(outboxEnvelopes).ToArray(), cancellationToken);
+
+        // 5. Create and insert a snapshot if configured
+        // TODO
+
+        // 6. Commit transaction so event-store and outbox are in sync. Consumers should not be in this transaction.
+        if (transaction != null)
+            await transaction.CommitAsync(cancellationToken);
+
+        // 7. Notify sync subscribers
+        foreach (var outboxEnvelope in outboxEnvelopes)
+            await subscriberManager.NotifySyncSubscribersAsync(outboxEnvelope, cancellationToken);
+
+        // 8. Insert an outbox envelope consumer for every sync subscriber
+        await using var consumerTransaction = transactionFactory?.Create();
+        var consumerOutboxRepository = consumerTransaction?.OutboxEnvelopeRepository ?? outboxEnvelopeRepository;
+
+        var consumers = outboxEnvelopes.SelectMany(e => e.Consumers);
+        await consumerOutboxRepository.InsertConsumersAsync(GetRaw(consumers).ToArray(), cancellationToken);
+
+        if (consumerTransaction != null)
+            await consumerTransaction.CommitAsync(cancellationToken);
     }
 
     private async Task<(Snapshot? snapshot, Envelope[] Stream)> GetSnapshotAndStreamAsync(AggregateConfiguration configuration, string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
@@ -105,7 +133,7 @@ public class EventStore(
             var rawSnapshot = await snapshotRepository.GetLastSnapshotAsync(streamId, version ?? 0, cancellationToken);
             if (rawSnapshot != null)
             {
-                var aggregate = eventStoreSerializer.Deserialize(rawSnapshot.Payload, configuration.RuntimeType);
+                var aggregate = serializer.Deserialize(rawSnapshot.Payload, configuration.RuntimeType);
                 if (aggregate != null)
                 {
                     snapshot = new Snapshot
@@ -133,5 +161,35 @@ public class EventStore(
             cancellationToken);
 
         return (snapshot, stream);
+    }
+
+    private IEnumerable<RawOutboxEnvelope> GetRaw(IEnumerable<OutboxEnvelope> envelopes)
+    {
+        return envelopes.Select(e =>
+        {
+            if (!eventStoreConfiguration.Events.EventConfigsByKey.TryGetValue(e.EventKey, out var configuration))
+                throw new InvalidOperationException($"Event type {e.EventKey} is not configured.");
+
+            return new RawOutboxEnvelope
+            {
+                StreamId = e.StreamId,
+                Payload = serializer.Serialize(e.Event, configuration.RuntimeType),
+                Version = e.Version,
+                Timestamp = e.Timestamp,
+                EventKey = e.EventKey,
+                Consumers = GetRaw(e.Consumers).ToList(),
+            };
+        });
+    }
+
+    private IEnumerable<RawOutboxEnvelopeConsumer> GetRaw(IEnumerable<OutboxEnvelopeConsumer> consumers)
+    {
+        return consumers.Select(c => new RawOutboxEnvelopeConsumer
+        {
+            StreamId = c.StreamId,
+            Version = c.Version,
+            ConsumerKey = c.ConsumerKey,
+            Type = c.Type,
+        });
     }
 }
