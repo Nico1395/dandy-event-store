@@ -29,7 +29,6 @@ public static class EventStoreServiceCollectionExtensions
         services.AddSingleton<IEventStore, EventStore>();
         services.AddSingleton<IEnvelopeFactory, EnvelopeFactory>();
         services.AddSingleton<ISubscriberManager, SubscriberManager>();
-        services.AddSingleton<IOutbox, Outbox.Outbox>();
 
         if (configuration.Assemblies != null)
         {
