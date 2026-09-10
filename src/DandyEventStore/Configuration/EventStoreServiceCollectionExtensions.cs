@@ -26,9 +26,9 @@ public static class EventStoreServiceCollectionExtensions
         var configuration = builder.Build();
 
         services.AddSingleton(configuration);
-        services.AddSingleton<IEventStore, EventStore>();
+        services.AddScoped<IEventStore, EventStore>();
+        services.AddScoped<ISubscriberManager, SubscriberManager>();
         services.AddSingleton<IEnvelopeFactory, EnvelopeFactory>();
-        services.AddSingleton<ISubscriberManager, SubscriberManager>();
 
         if (configuration.Assemblies != null)
         {
