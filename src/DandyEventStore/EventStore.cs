@@ -22,10 +22,8 @@ internal sealed class EventStore(
     {
         var configuration = eventStoreConfiguration.Aggregates.GetOrAddAggregateConfig(aggregateType);
         var (snapshot, stream) = await GetSnapshotAndStreamAsync(configuration, streamId, version, timestamp, cancellationToken);
-        if (stream.Length == 0)
-            return null;
 
-        return ReplayAggregate(configuration, snapshot, stream);
+        return ReplayAggregate(configuration, streamId, snapshot, stream);
     }
 
     public async Task<Envelope[]> GetStreamAsync(string streamId, long? fromVersion, long? toVersion, DateTime? fromTimestamp, DateTime? toTimestamp, CancellationToken cancellationToken)
@@ -121,7 +119,7 @@ internal sealed class EventStore(
 
         var stream = await GetStreamAsync(
             streamId,
-            fromVersion: snapshot?.Version,
+            fromVersion: snapshot?.Version + 1,
             toVersion: version,
             fromTimestamp: null,
             toTimestamp: timestamp,
@@ -130,14 +128,11 @@ internal sealed class EventStore(
         return (snapshot, stream);
     }
 
-    private object? ReplayAggregate(AggregateConfiguration configuration, Snapshot? snapshot, Envelope[] stream)
+    private object? ReplayAggregate(AggregateConfiguration configuration, string streamId, Snapshot? snapshot, Envelope[] stream)
     {
-        if (stream.Length == 0)
-            return null;
-
         var hasDuplicates = stream.GroupBy(e => e.Version).Any(c => c.Count() > 1);
         if (hasDuplicates)
-            throw new InvalidOperationException($"Stream {stream.First().StreamId} has duplicate events.");
+            throw new InvalidOperationException($"Stream with ID '{streamId}' has duplicate events.");
 
         stream = stream.OrderBy(e => e.Version).ToArray();
 
@@ -161,8 +156,8 @@ internal sealed class EventStore(
 
         if (aggregateConfiguration.ShouldCreateSnapshot(currentVersion, versionAfterAppend))
         {
-            var (snapshot, stream) = await GetSnapshotAndStreamAsync(aggregateConfiguration, streamId, currentVersion, null, cancellationToken);
-            var aggregate = ReplayAggregate(aggregateConfiguration, snapshot, stream.Concat(envelopes).ToArray());
+            var (snapshot, stream) = await GetSnapshotAndStreamAsync(aggregateConfiguration, streamId, null, null, cancellationToken);
+            var aggregate = ReplayAggregate(aggregateConfiguration, streamId, snapshot, stream);
             if (aggregate == null)
                 throw new InvalidOperationException($"Failed to replay aggregate {aggregateType.FullName} from stream {streamId} to create snapshot.");
 
