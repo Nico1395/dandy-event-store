@@ -40,8 +40,8 @@ public static class Tables
         public const string Table = "outbox_envelope_consumers";
         
         public const string StreamId = "stream_id";
-        public const string Payload = "payload";
         public const string Version = "version";
+        public const string Type = "type";
         public const string ConsumedAt = "consumed_at";
         public const string FailedAt = "failed_at";
         public const string ConsumerKey = "ConsumerKey";

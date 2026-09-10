@@ -14,7 +14,7 @@ internal sealed class SqlSnapshotRepository(
         return raw.FirstOrDefault();
     }
 
-    public async Task StoreAsync(RawSnapshot snapshot, CancellationToken cancellationToken)
+    public async Task InsertAsync(RawSnapshot snapshot, CancellationToken cancellationToken)
     {
         using var connection = dbConnectionFactory.CreateAndOpen();
         await connection.ExecuteAsync(sqlStrings.StoreSnapshot, snapshot);

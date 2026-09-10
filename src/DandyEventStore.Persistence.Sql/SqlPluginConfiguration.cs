@@ -14,5 +14,6 @@ public abstract class SqlPluginConfiguration : PluginConfiguration
         services.AddSingleton<IEventRepository, SqlEventRepository>();
         services.AddSingleton<ISnapshotRepository, SqlSnapshotRepository>();
         services.AddSingleton<IOutboxEnvelopeRepository, SqlOutboxEnvelopeRepository>();
+        services.AddSingleton<ITransactionFactory, SqlTransactionFactory>();
     }
 }
