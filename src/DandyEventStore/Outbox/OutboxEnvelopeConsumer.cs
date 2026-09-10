@@ -9,6 +9,8 @@ public sealed class OutboxEnvelopeConsumer
     public DateTime? ConsumedAt { get; set; }
     public DateTime? FailedAt { get; set; }
 
+    internal bool IsNew { get; init; }
+
     public void Consume()
     {
         ConsumedAt = DateTime.UtcNow;

@@ -39,6 +39,7 @@ public sealed class OutboxEnvelope : IReadOnlyOutboxEnvelope
                 Version = Version,
                 ConsumerKey = consumerKey,
                 Type = type,
+                IsNew = true,
             });
         }
 
@@ -56,6 +57,7 @@ public sealed class OutboxEnvelope : IReadOnlyOutboxEnvelope
                 Version = Version,
                 ConsumerKey = consumerKey,
                 Type = type,
+                IsNew = true,
             });
         }
 

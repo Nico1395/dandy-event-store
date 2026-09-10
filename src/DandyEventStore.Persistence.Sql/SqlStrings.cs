@@ -11,4 +11,5 @@ public abstract class SqlStrings
     public abstract string InsertOutboxEnvelopes { get; }
     public abstract string DeleteOutboxEnvelopes { get; }
     public abstract string InsertOutboxEnvelopeConsumers { get; }
+    public abstract string UpdateOutboxEnvelopeConsumers { get; }
 }

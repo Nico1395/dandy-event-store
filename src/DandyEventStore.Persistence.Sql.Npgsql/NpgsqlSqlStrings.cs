@@ -127,4 +127,14 @@ internal sealed class NpgsqlSqlStrings : SqlStrings
                                                                     @ConsumedAt,
                                                                     @FailedAt)
                                                             """;
+
+    public override string UpdateOutboxEnvelopeConsumers => $"""
+                                                                UPDATE {Schema.Name}.{Tables.OutboxEnvelopeConsumers.Table}
+                                                                SET
+                                                                    {Tables.OutboxEnvelopeConsumers.ConsumedAt} = @ConsumedAt,
+                                                                    {Tables.OutboxEnvelopeConsumers.FailedAt} = @FailedAt
+                                                                WHERE {Tables.OutboxEnvelopeConsumers.StreamId} = @StreamId
+                                                                AND {Tables.OutboxEnvelopeConsumers.Version} = @Version
+                                                                AND {Tables.OutboxEnvelopeConsumers.ConsumerKey} = @ConsumerKey
+                                                            """;
 }

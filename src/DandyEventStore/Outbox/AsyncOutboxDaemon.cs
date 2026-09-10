@@ -68,8 +68,12 @@ internal sealed class AsyncOutboxDaemon(
                 cancellationToken);
         }
 
-        var consumers = envelopes.SelectMany(e => e.Consumers);
-        await unitOfWork.Outbox.InsertConsumersAsync(GetRaw(consumers).ToArray(), cancellationToken);
+        var consumers = envelopes.SelectMany(e => e.Consumers).ToArray();
+        var consumersToInsert = consumers.Where(c => c.IsNew);
+        var consumersToUpdate = consumers.Where(c => !c.IsNew);
+
+        await unitOfWork.Outbox.InsertConsumersAsync(GetRaw(consumersToInsert).ToArray(), cancellationToken);
+        await unitOfWork.Outbox.UpdateConsumersAsync(GetRaw(consumersToUpdate).ToArray(), cancellationToken);
         await unitOfWork.CommitAsync(cancellationToken);
     }
 

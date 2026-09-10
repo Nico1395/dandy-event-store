@@ -78,6 +78,27 @@ internal sealed class OutboxRepository(
             cancellationToken: cancellationToken));
     }
 
+    public async Task UpdateConsumersAsync(RawOutboxEnvelopeConsumer[] consumers, CancellationToken cancellationToken)
+    {
+        if (consumers.Length == 0)
+            return;
+
+        var parameters = consumers.Select(c => new
+        {
+            c.StreamId,
+            c.Version,
+            c.ConsumerKey,
+            c.ConsumedAt,
+            c.FailedAt,
+        });
+
+        await unitOfWorkContext.Connection.ExecuteAsync(new CommandDefinition(
+            sqlStrings.UpdateOutboxEnvelopeConsumers,
+            parameters,
+            transaction: unitOfWorkContext.Transaction,
+            cancellationToken: cancellationToken));
+    }
+
     private static IEnumerable<RawOutboxEnvelope> RowsToEnvelopes(IEnumerable<RawOutboxEnvelopeRow> rows)
     {
         return rows

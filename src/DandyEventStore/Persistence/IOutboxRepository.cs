@@ -8,4 +8,5 @@ public interface IOutboxRepository
     Task InsertEnvelopesAsync(RawOutboxEnvelope[] events, CancellationToken cancellationToken);
     Task DeleteEnvelopesAsync(RawOutboxEnvelope[] events, CancellationToken cancellationToken);
     Task InsertConsumersAsync(RawOutboxEnvelopeConsumer[] consumers, CancellationToken cancellationToken);
+    Task UpdateConsumersAsync(RawOutboxEnvelopeConsumer[] consumers, CancellationToken cancellationToken);
 }
