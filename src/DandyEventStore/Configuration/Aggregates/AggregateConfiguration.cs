@@ -19,6 +19,6 @@ public sealed class AggregateConfiguration
             return false;
 
         var diff = versionAfterAppend - currentVersion;
-        return diff % SnapshotInterval == 0;
+        return diff >= SnapshotInterval;
     }
 }
