@@ -9,7 +9,7 @@ internal sealed class SubscriptionManager(
     EventStoreConfiguration eventStoreConfiguration,
     IServiceProvider serviceProvider) : ISubscriptionManager
 {
-    public async Task NotifySubscribersAsync(OutboxEnvelope outboxEnvelope, SubscriberMode[] modes, CancellationToken cancellationToken)
+    public async Task NotifySubscribersAsync(IEventStore? eventStore, OutboxEnvelope outboxEnvelope, SubscriberMode[] modes, CancellationToken cancellationToken)
     {
         // We are looking for the event type in the subscribers-configuration. A subscriber will not be notified
         // if the subscriber type is not configured. A subscriber type is configured if it's manually added or has the 
@@ -32,7 +32,12 @@ internal sealed class SubscriptionManager(
 
         foreach (var (configuration, subscriber) in subscribers)
         {
-            var context = new SubscriberContext { Envelope = outboxEnvelope, };
+            var context = new SubscriberContext
+            {
+                EventStore = eventStore ??= serviceProvider.GetRequiredService<IEventStore>(),
+                Envelope = outboxEnvelope,
+                Configuration = configuration,
+            };
 
             try
             {

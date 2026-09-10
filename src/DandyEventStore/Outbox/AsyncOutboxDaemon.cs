@@ -64,6 +64,7 @@ internal sealed class AsyncOutboxDaemon(
             // using the envelope's consumers and their statuses.
 
             await subscriptionManager.NotifySubscribersAsync(
+                eventStore: null,
                 envelope,
                 [SubscriberMode.Inline, SubscriberMode.Async],
                 cancellationToken);

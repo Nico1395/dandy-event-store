@@ -71,7 +71,13 @@ internal sealed class EventStore(
 
         // Notify inline subscribers
         foreach (var outboxEnvelope in outboxEnvelopes)
-            await subscriptionManager.NotifySubscribersAsync(outboxEnvelope, [SubscriberMode.Inline], cancellationToken);
+        {
+            await subscriptionManager.NotifySubscribersAsync(
+                eventStore: this,
+                outboxEnvelope, 
+                modes: [SubscriberMode.Inline],
+                cancellationToken);
+        }
 
         // Save consumers for every subscriber
         var outboxConsumers = outboxEnvelopes.SelectMany(e => e.Consumers);
