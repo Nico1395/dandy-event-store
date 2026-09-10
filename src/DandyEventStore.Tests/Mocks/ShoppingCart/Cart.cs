@@ -7,11 +7,11 @@ namespace DandyEventStore.Tests.Mocks.ShoppingCart;
 internal sealed class Cart
 {
     public required Guid Id { get; init; }
-    public long Version { get; private set; }
+    public long Version { get; set; }
     public required string UserId { get; init; }
     public List<CartLineItem> LineItems { get; init; } = new();
-    public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     [AggregateFactory]
     public static Cart Create(Cart? snapshot, Envelope[] envelopes)
@@ -55,7 +55,7 @@ internal sealed class Cart
                     Apply(lineItemRemoved);
                     break;
                 default:
-                    throw new InvalidOperationException();
+                    throw new NotSupportedException($"Event '{envelope.Event.GetType().Name}' is not supported in aggregate '{nameof(Cart)}'.");
             }
 
             UpdatedAt = envelope.Timestamp;

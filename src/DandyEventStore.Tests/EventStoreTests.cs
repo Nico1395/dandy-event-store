@@ -48,7 +48,7 @@ public class EventStoreTests(DefaultFixture fixture) : IClassFixture<DefaultFixt
         var stream = await eventStore.GetStreamAsync(streamId, null, null, null, null, cancellationToken: CancellationToken.None);
         Assert.Equal(6, stream.Length);
 
-        var aggregate = await eventStore.ReplayAggregateAsync<Cart>(streamId, null, null, CancellationToken.None);
+        var aggregate = await eventStore.ReplayAggregateAsync<Cart>(streamId, 5, null, CancellationToken.None);
         Assert.NotNull(aggregate);
         Assert.Equal(5, aggregate.Version);
     }
