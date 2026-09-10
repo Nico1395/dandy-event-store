@@ -1,3 +1,4 @@
+using DandyEventStore.Persistence.Entities;
 using Dapper;
 
 namespace DandyEventStore.Persistence.Sql.Repositories;
@@ -15,9 +16,9 @@ internal sealed class EnvelopeRepository(
             cancellationToken: cancellationToken));
     }
 
-    public async Task<RawEnvelope[]> GetStreamAsync(string streamId, long? fromVersion, long? toVersion, DateTime? fromTimestamp, DateTime? toTimestamp, CancellationToken cancellationToken)
+    public async Task<EnvelopeEntity[]> GetStreamAsync(string streamId, long? fromVersion, long? toVersion, DateTime? fromTimestamp, DateTime? toTimestamp, CancellationToken cancellationToken)
     {
-        var raw = await unitOfWorkContext.Connection.QueryAsync<RawEnvelope>(new CommandDefinition(
+        var raw = await unitOfWorkContext.Connection.QueryAsync<EnvelopeEntity>(new CommandDefinition(
             sqlStrings.GetStream,
             new
             {
@@ -33,7 +34,7 @@ internal sealed class EnvelopeRepository(
         return raw.ToArray();
     }
 
-    public async Task InsertAsync(string streamId, RawEnvelope[] envelopes, CancellationToken cancellationToken)
+    public async Task InsertAsync(string streamId, EnvelopeEntity[] envelopes, CancellationToken cancellationToken)
     {
         if (envelopes.Length == 0)
             return;

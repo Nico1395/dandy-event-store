@@ -1,12 +1,13 @@
 using DandyEventStore.Outbox;
+using DandyEventStore.Persistence.Entities;
 
 namespace DandyEventStore.Persistence;
 
 public interface IOutboxRepository
 {
-    Task<RawOutboxEnvelope[]> GetEnvelopesAsync(CancellationToken cancellationToken); 
-    Task InsertEnvelopesAsync(RawOutboxEnvelope[] events, CancellationToken cancellationToken);
-    Task DeleteEnvelopesAsync(RawOutboxEnvelope[] events, CancellationToken cancellationToken);
-    Task InsertConsumersAsync(RawOutboxEnvelopeConsumer[] consumers, CancellationToken cancellationToken);
-    Task UpdateConsumersAsync(RawOutboxEnvelopeConsumer[] consumers, CancellationToken cancellationToken);
+    Task<OutboxEnvelopeEntity[]> GetEnvelopesAsync(CancellationToken cancellationToken); 
+    Task InsertEnvelopesAsync(OutboxEnvelopeEntity[] events, CancellationToken cancellationToken);
+    Task DeleteEnvelopesAsync(OutboxEnvelopeEntity[] events, CancellationToken cancellationToken);
+    Task InsertConsumersAsync(OutboxEnvelopeConsumerEntity[] consumers, CancellationToken cancellationToken);
+    Task UpdateConsumersAsync(OutboxEnvelopeConsumerEntity[] consumers, CancellationToken cancellationToken);
 }

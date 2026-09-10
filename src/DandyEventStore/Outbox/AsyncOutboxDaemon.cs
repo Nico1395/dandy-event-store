@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using DandyEventStore.Configuration;
 using DandyEventStore.Persistence;
+using DandyEventStore.Persistence.Mapping;
 using DandyEventStore.Serialization;
 using DandyEventStore.Subscribers;
 using Microsoft.Extensions.Hosting;
@@ -56,7 +57,7 @@ internal sealed class AsyncOutboxDaemon(
             await unitOfWork.CommitAsync(cancellationToken);
         }
 
-        var envelopes = GetEnvelopes(rawEnvelopes.Except(expired));
+        var envelopes = InternalMapper.MapFromEntity(eventStoreConfiguration, serializer, rawEnvelopes.Except(expired)).ToArray();
         foreach (var envelope in envelopes)
         {
             // The subscription manager filters out subscribers that have already successfully consumed the envelope
@@ -69,58 +70,15 @@ internal sealed class AsyncOutboxDaemon(
         }
 
         var consumers = envelopes.SelectMany(e => e.Consumers).ToArray();
+
         var consumersToInsert = consumers.Where(c => c.IsNew);
+        var insertEntities = InternalMapper.MapToEntity(consumersToInsert).ToArray();
+        await unitOfWork.Outbox.InsertConsumersAsync(insertEntities, cancellationToken);
+
         var consumersToUpdate = consumers.Where(c => !c.IsNew);
+        var updateEntities = InternalMapper.MapToEntity(consumersToUpdate).ToArray();
+        await unitOfWork.Outbox.UpdateConsumersAsync(updateEntities, cancellationToken);
 
-        await unitOfWork.Outbox.InsertConsumersAsync(GetRaw(consumersToInsert).ToArray(), cancellationToken);
-        await unitOfWork.Outbox.UpdateConsumersAsync(GetRaw(consumersToUpdate).ToArray(), cancellationToken);
         await unitOfWork.CommitAsync(cancellationToken);
-    }
-
-    private OutboxEnvelope[] GetEnvelopes(IEnumerable<RawOutboxEnvelope> rawEnvelopes)
-    {
-        var envelopes = rawEnvelopes.Select(r =>
-        {
-            if (!eventStoreConfiguration.Events.EventConfigsByKey.TryGetValue(r.EventKey, out var configuration))
-                throw new InvalidOperationException($"Envelope type {r.EventKey} is not configured.");
-
-            var deserialized = serializer.Deserialize(r.Payload, configuration.RuntimeType);
-            if (deserialized == null)
-                throw new InvalidOperationException($"Failed to deserialize event {r.EventKey} from payload.");
-
-            return new OutboxEnvelope
-            {
-                StreamId = r.StreamId,
-                Event = deserialized,
-                Version = r.Version,
-                Timestamp = r.Timestamp,
-                EventKey = r.EventKey,
-                RuntimeType = configuration.RuntimeType,
-                Consumers = r.Consumers.Select(c => new OutboxEnvelopeConsumer
-                {
-                    StreamId = c.StreamId,
-                    Version = c.Version,
-                    ConsumerKey = c.ConsumerKey,
-                    Type = c.Type,
-                    ConsumedAt = c.ConsumedAt,
-                    FailedAt = c.FailedAt,
-                }).ToList(),
-            };
-        });
-
-        return envelopes.ToArray();
-    }
-
-    private IEnumerable<RawOutboxEnvelopeConsumer> GetRaw(IEnumerable<OutboxEnvelopeConsumer> consumers)
-    {
-        return consumers.Select(c => new RawOutboxEnvelopeConsumer
-        {
-            StreamId = c.StreamId,
-            Version = c.Version,
-            ConsumerKey = c.ConsumerKey,
-            Type = c.Type,
-            ConsumedAt = c.ConsumedAt,
-            FailedAt = c.FailedAt,
-        });
     }
 }

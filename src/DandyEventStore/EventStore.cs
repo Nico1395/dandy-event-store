@@ -3,6 +3,8 @@ using DandyEventStore.Configuration;
 using DandyEventStore.Configuration.Aggregates;
 using DandyEventStore.Outbox;
 using DandyEventStore.Persistence;
+using DandyEventStore.Persistence.Entities;
+using DandyEventStore.Persistence.Mapping;
 using DandyEventStore.Serialization;
 using DandyEventStore.Subscribers;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,18 +29,12 @@ internal sealed class EventStore(
 
     public async Task<Envelope[]> GetStreamAsync(string streamId, long? fromVersion, long? toVersion, DateTime? fromTimestamp, DateTime? toTimestamp, CancellationToken cancellationToken)
     {
-        var rawEnvelopes = await unitOfWork.Envelopes.GetStreamAsync(streamId, fromVersion, toVersion, fromTimestamp, toTimestamp, cancellationToken);
-        var envelopes = rawEnvelopes.Select(r =>
-        {
-            if (!eventStoreConfiguration.Events.EventConfigsByKey.TryGetValue(r.EventKey, out var configuration))
-                throw new InvalidOperationException($"Envelope type {r.EventKey} is not configured.");
-
-            var @event = serializer.Deserialize(r.Payload, configuration.RuntimeType);
-            if (@event == null)
-                throw new InvalidOperationException($"Failed to deserialize event {r.EventKey} from payload.");
-
-            return envelopeFactory.Create(r.StreamId, @event, r.Version);
-        });
+        var envelopeEntities = await unitOfWork.Envelopes.GetStreamAsync(streamId, fromVersion, toVersion, fromTimestamp, toTimestamp, cancellationToken);
+        var envelopes = InternalMapper.MapFromEntity(
+            eventStoreConfiguration,
+            serializer,
+            envelopeFactory,
+            envelopeEntities);
 
         return envelopes.ToArray();
     }
@@ -53,25 +49,19 @@ internal sealed class EventStore(
 
         // Fetch current version
         var currentVersion = await unitOfWork.Envelopes.GetStreamVersionAsync(streamId, cancellationToken);
-        
+
         // Create envelopes
         var envelopeVersion = currentVersion;
         var envelopes = events.Select(e => envelopeFactory.Create(streamId, e, envelopeVersion++)).ToArray();
-        var rawEnvelopes = envelopes.Select(e => new RawEnvelope
-        {
-            StreamId = e.StreamId,
-            Payload = serializer.Serialize(e.Event, e.RuntimeType),
-            Version = e.Version,
-            Timestamp = e.Timestamp,
-            EventKey = e.EventKey,
-        });
+        var envelopeEntities = InternalMapper.MapToEntity(serializer, envelopes).ToArray();
 
         // Insert events
-        await unitOfWork.Envelopes.InsertAsync(streamId, rawEnvelopes.ToArray(), cancellationToken);
+        await unitOfWork.Envelopes.InsertAsync(streamId, envelopeEntities, cancellationToken);
 
         // Insert outbox envelopes
         var outboxEnvelopes = envelopes.Select(OutboxEnvelope.Create).ToArray();
-        await unitOfWork.Outbox.InsertEnvelopesAsync(GetRaw(outboxEnvelopes).ToArray(), cancellationToken);
+        var outboxEnvelopesEntities = InternalMapper.MapToEntity(eventStoreConfiguration, serializer, outboxEnvelopes).ToArray();
+        await unitOfWork.Outbox.InsertEnvelopesAsync(outboxEnvelopesEntities, cancellationToken);
 
         // Create and insert a snapshot if configured
         await CreateSnapshotAsync(aggregateType, streamId, envelopes, currentVersion, cancellationToken);
@@ -84,8 +74,9 @@ internal sealed class EventStore(
             await subscriptionManager.NotifySubscribersAsync(outboxEnvelope, [SubscriberMode.Inline], cancellationToken);
 
         // Save consumers for every subscriber
-        var consumers = outboxEnvelopes.SelectMany(e => e.Consumers);
-        await unitOfWork.Outbox.InsertConsumersAsync(GetRaw(consumers).ToArray(), cancellationToken);
+        var outboxConsumers = outboxEnvelopes.SelectMany(e => e.Consumers);
+        var outboxConsumerEntities = InternalMapper.MapToEntity(outboxConsumers).ToArray();
+        await unitOfWork.Outbox.InsertConsumersAsync(outboxConsumerEntities, cancellationToken);
         await unitOfWork.CommitAsync(cancellationToken);
     }
 
@@ -155,12 +146,11 @@ internal sealed class EventStore(
 
         if (aggregateConfiguration.ShouldCreateSnapshot(currentVersion, versionAfterAppend))
         {
-            var (snapshot, stream) = await GetSnapshotAndStreamAsync(aggregateConfiguration, streamId, null, null, cancellationToken);
-            var aggregate = ReplayAggregate(aggregateConfiguration, streamId, snapshot, stream);
+            var aggregate = await ReplayAggregateAsync(aggregateType, streamId, null, null, cancellationToken);
             if (aggregate == null)
                 throw new InvalidOperationException($"Failed to replay aggregate {aggregateType.FullName} from stream {streamId} to create snapshot.");
 
-            var rawSnapshot = new RawSnapshot
+            var snapshotEntity = new SnapshotEntity
             {
                 StreamId = streamId,
                 Version = versionAfterAppend,
@@ -169,39 +159,7 @@ internal sealed class EventStore(
                 AggregateKey = aggregateConfiguration.Key,
             };
 
-            await unitOfWork.Snapshots.InsertAsync(rawSnapshot, cancellationToken);
+            await unitOfWork.Snapshots.InsertAsync(snapshotEntity, cancellationToken);
         }
-    }
-
-    private IEnumerable<RawOutboxEnvelope> GetRaw(IEnumerable<OutboxEnvelope> envelopes)
-    {
-        return envelopes.Select(e =>
-        {
-            if (!eventStoreConfiguration.Events.EventConfigsByKey.TryGetValue(e.EventKey, out var configuration))
-                throw new InvalidOperationException($"Envelope type {e.EventKey} is not configured.");
-
-            return new RawOutboxEnvelope
-            {
-                StreamId = e.StreamId,
-                Payload = serializer.Serialize(e.Event, configuration.RuntimeType),
-                Version = e.Version,
-                Timestamp = e.Timestamp,
-                EventKey = e.EventKey,
-                Consumers = GetRaw(e.Consumers).ToList(),
-            };
-        });
-    }
-
-    private IEnumerable<RawOutboxEnvelopeConsumer> GetRaw(IEnumerable<OutboxEnvelopeConsumer> consumers)
-    {
-        return consumers.Select(c => new RawOutboxEnvelopeConsumer
-        {
-            StreamId = c.StreamId,
-            Version = c.Version,
-            ConsumerKey = c.ConsumerKey,
-            Type = c.Type,
-            ConsumedAt = c.ConsumedAt,
-            FailedAt = c.FailedAt,
-        });
     }
 }

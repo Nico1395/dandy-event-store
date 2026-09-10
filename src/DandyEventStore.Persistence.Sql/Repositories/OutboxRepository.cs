@@ -1,4 +1,5 @@
 using DandyEventStore.Outbox;
+using DandyEventStore.Persistence.Entities;
 using Dapper;
 
 namespace DandyEventStore.Persistence.Sql.Repositories;
@@ -7,7 +8,7 @@ internal sealed class OutboxRepository(
     SqlStrings sqlStrings,
     IReadOnlyUnitOfWorkContext unitOfWorkContext) : IOutboxRepository
 {
-    public async Task<RawOutboxEnvelope[]> GetEnvelopesAsync(CancellationToken cancellationToken)
+    public async Task<OutboxEnvelopeEntity[]> GetEnvelopesAsync(CancellationToken cancellationToken)
     {
         var rows = await unitOfWorkContext.Connection.QueryAsync<RawOutboxEnvelopeRow>(new CommandDefinition(
             sqlStrings.GetOutboxEnvelopes,
@@ -17,7 +18,7 @@ internal sealed class OutboxRepository(
         return RowsToEnvelopes(rows).ToArray();
     }
 
-    public async Task InsertEnvelopesAsync(RawOutboxEnvelope[] events, CancellationToken cancellationToken)
+    public async Task InsertEnvelopesAsync(OutboxEnvelopeEntity[] events, CancellationToken cancellationToken)
     {
         if (events.Length == 0)
             return;
@@ -38,7 +39,7 @@ internal sealed class OutboxRepository(
             cancellationToken: cancellationToken));
     }
 
-    public async Task DeleteEnvelopesAsync(RawOutboxEnvelope[] events, CancellationToken cancellationToken)
+    public async Task DeleteEnvelopesAsync(OutboxEnvelopeEntity[] events, CancellationToken cancellationToken)
     {
         if (events.Length == 0)
             return;
@@ -56,7 +57,7 @@ internal sealed class OutboxRepository(
             cancellationToken: cancellationToken));
     }
 
-    public async Task InsertConsumersAsync(RawOutboxEnvelopeConsumer[] consumers, CancellationToken cancellationToken)
+    public async Task InsertConsumersAsync(OutboxEnvelopeConsumerEntity[] consumers, CancellationToken cancellationToken)
     {
         if (consumers.Length == 0)
             return;
@@ -78,7 +79,7 @@ internal sealed class OutboxRepository(
             cancellationToken: cancellationToken));
     }
 
-    public async Task UpdateConsumersAsync(RawOutboxEnvelopeConsumer[] consumers, CancellationToken cancellationToken)
+    public async Task UpdateConsumersAsync(OutboxEnvelopeConsumerEntity[] consumers, CancellationToken cancellationToken)
     {
         if (consumers.Length == 0)
             return;
@@ -99,7 +100,7 @@ internal sealed class OutboxRepository(
             cancellationToken: cancellationToken));
     }
 
-    private static IEnumerable<RawOutboxEnvelope> RowsToEnvelopes(IEnumerable<RawOutboxEnvelopeRow> rows)
+    private static IEnumerable<OutboxEnvelopeEntity> RowsToEnvelopes(IEnumerable<RawOutboxEnvelopeRow> rows)
     {
         return rows
             .GroupBy(row => new
@@ -110,7 +111,7 @@ internal sealed class OutboxRepository(
             .Select(group =>
             {
                 var envelope = group.First();
-                return new RawOutboxEnvelope
+                return new OutboxEnvelopeEntity
                 {
                     StreamId = group.Key.StreamId,
                     Payload = envelope.Payload,
@@ -119,7 +120,7 @@ internal sealed class OutboxRepository(
                     EventKey = envelope.EventKey,
                     Consumers = group
                         .Where(row => row.ConsumerKey is not null)
-                        .Select(row => new RawOutboxEnvelopeConsumer
+                        .Select(row => new OutboxEnvelopeConsumerEntity
                         {
                             StreamId = row.ConsumerStreamId!,
                             Version = row.ConsumerVersion!.Value,

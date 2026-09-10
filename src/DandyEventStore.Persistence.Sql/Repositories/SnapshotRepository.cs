@@ -1,3 +1,4 @@
+using DandyEventStore.Persistence.Entities;
 using Dapper;
 
 namespace DandyEventStore.Persistence.Sql.Repositories;
@@ -6,9 +7,9 @@ internal sealed class SnapshotRepository(
     SqlStrings sqlStrings,
     IReadOnlyUnitOfWorkContext unitOfWorkContext) : ISnapshotRepository
 {
-    public async Task<RawSnapshot?> GetLastSnapshotAsync(string streamId, long version, CancellationToken cancellationToken)
+    public async Task<SnapshotEntity?> GetLastSnapshotAsync(string streamId, long version, CancellationToken cancellationToken)
     {
-        var raw = await unitOfWorkContext.Connection.QueryAsync<RawSnapshot>(new CommandDefinition(
+        var raw = await unitOfWorkContext.Connection.QueryAsync<SnapshotEntity>(new CommandDefinition(
             sqlStrings.GetLastSnapshot,
             new { StreamId = streamId, Version = version },
             transaction: unitOfWorkContext.Transaction,
@@ -17,11 +18,11 @@ internal sealed class SnapshotRepository(
         return raw.FirstOrDefault();
     }
 
-    public async Task InsertAsync(RawSnapshot snapshot, CancellationToken cancellationToken)
+    public async Task InsertAsync(SnapshotEntity snapshotEntity, CancellationToken cancellationToken)
     {
         await unitOfWorkContext.Connection.ExecuteAsync(new CommandDefinition(
             sqlStrings.StoreSnapshot,
-            snapshot,
+            snapshotEntity,
             transaction: unitOfWorkContext.Transaction,
             cancellationToken: cancellationToken));
     }
