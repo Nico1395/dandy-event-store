@@ -17,6 +17,7 @@ internal sealed class EventStore(
     IEnvelopeFactory envelopeFactory,
     ISubscriptionManager subscriptionManager,
     ISerializer serializer,
+    IOutbox outbox,
     IUnitOfWork unitOfWork) : IEventStore
 {
     public async Task<object?> ReplayAggregateAsync(Type aggregateType, string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
@@ -71,10 +72,9 @@ internal sealed class EventStore(
         // Insert events
         await unitOfWork.Envelopes.InsertAsync(streamId, envelopeEntities, cancellationToken);
 
-        // Insert outbox envelopes
+        // Publish outbox envelopes
         var outboxEnvelopes = envelopes.Select(OutboxEnvelope.Create).ToArray();
-        var outboxEnvelopesEntities = InternalMapper.MapToEntity(eventStoreConfiguration, serializer, outboxEnvelopes).ToArray();
-        await unitOfWork.Outbox.InsertEnvelopesAsync(outboxEnvelopesEntities, cancellationToken);
+        await outbox.PublishAsync(outboxEnvelopes, cancellationToken);
 
         // Create and insert a snapshot if configured
         await CreateSnapshotAsync(aggregateType, streamId, envelopes, currentVersion, cancellationToken);
@@ -83,19 +83,7 @@ internal sealed class EventStore(
         await unitOfWork.CommitAsync(cancellationToken);
 
         // Notify inline subscribers
-        foreach (var outboxEnvelope in outboxEnvelopes)
-        {
-            await subscriptionManager.NotifySubscribersAsync(
-                eventStore: this,
-                outboxEnvelope, 
-                modes: [SubscriberMode.Inline],
-                cancellationToken);
-        }
-
-        // Save consumers for every subscriber
-        var outboxConsumers = outboxEnvelopes.SelectMany(e => e.Consumers);
-        var outboxConsumerEntities = InternalMapper.MapToEntity(outboxConsumers).ToArray();
-        await unitOfWork.Outbox.InsertConsumersAsync(outboxConsumerEntities, cancellationToken);
+        await outbox.NotifyInlineConsumersAsync(outboxEnvelopes, cancellationToken);
         await unitOfWork.CommitAsync(cancellationToken);
     }
 

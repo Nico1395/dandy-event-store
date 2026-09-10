@@ -27,6 +27,7 @@ public static class EventStoreServiceCollectionExtensions
         services.AddScoped<IEventStore, EventStore>();
         services.AddScoped<ISubscriptionManager, SubscriptionManager>();
         services.AddSingleton<IEnvelopeFactory, EnvelopeFactory>();
+        services.AddScoped<IOutbox, DandyEventStore.Outbox.Outbox>();
 
         if (configuration.Outbox.DaemonEnabled)
             services.AddHostedService<AsyncOutboxDaemon>();
