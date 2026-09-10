@@ -1,4 +1,5 @@
 using System.Data;
+using DandyEventStore.Persistence.Sql.Connections;
 using Npgsql;
 
 namespace DandyEventStore.Persistence.Sql.Npgsql;

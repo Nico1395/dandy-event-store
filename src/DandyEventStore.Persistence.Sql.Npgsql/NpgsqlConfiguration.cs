@@ -1,4 +1,5 @@
 using System.Reflection;
+using DandyEventStore.Persistence.Sql.Connections;
 using FluentMigrator.Runner;
 using Microsoft.Extensions.DependencyInjection;
 

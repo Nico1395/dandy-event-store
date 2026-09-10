@@ -1,17 +1,17 @@
 using DandyEventStore.Outbox;
 using Dapper;
 
-namespace DandyEventStore.Persistence.Sql;
+namespace DandyEventStore.Persistence.Sql.Repositories;
 
 internal sealed class OutboxRepository(
     SqlStrings sqlStrings,
-    UnitOfWorkContext connectionContext) : IOutboxRepository
+    IReadOnlyUnitOfWorkContext unitOfWorkContext) : IOutboxRepository
 {
     public async Task<RawOutboxEnvelope[]> GetEnvelopesAsync(CancellationToken cancellationToken)
     {
-        var rows = await connectionContext.Connection.QueryAsync<RawOutboxEnvelopeRow>(new CommandDefinition(
+        var rows = await unitOfWorkContext.Connection.QueryAsync<RawOutboxEnvelopeRow>(new CommandDefinition(
             sqlStrings.GetOutboxEnvelopes,
-            transaction: connectionContext.Transaction,
+            transaction: unitOfWorkContext.Transaction,
             cancellationToken: cancellationToken));
 
         return RowsToEnvelopes(rows).ToArray();
@@ -31,10 +31,10 @@ internal sealed class OutboxRepository(
             e.EventKey,
         });
 
-        await connectionContext.Connection.ExecuteAsync(new CommandDefinition(
+        await unitOfWorkContext.Connection.ExecuteAsync(new CommandDefinition(
             sqlStrings.InsertOutboxEnvelopes,
             parameters,
-            transaction: connectionContext.Transaction,
+            transaction: unitOfWorkContext.Transaction,
             cancellationToken: cancellationToken));
     }
 
@@ -49,10 +49,10 @@ internal sealed class OutboxRepository(
             e.Version,
         });
 
-        await connectionContext.Connection.ExecuteAsync(new CommandDefinition(
+        await unitOfWorkContext.Connection.ExecuteAsync(new CommandDefinition(
             sqlStrings.DeleteOutboxEnvelopes,
             parameters,
-            transaction: connectionContext.Transaction,
+            transaction: unitOfWorkContext.Transaction,
             cancellationToken: cancellationToken));
     }
 
@@ -71,10 +71,10 @@ internal sealed class OutboxRepository(
             c.FailedAt,
         });
 
-        await connectionContext.Connection.ExecuteAsync(new CommandDefinition(
+        await unitOfWorkContext.Connection.ExecuteAsync(new CommandDefinition(
             sqlStrings.InsertOutboxEnvelopeConsumers,
             parameters,
-            transaction: connectionContext.Transaction,
+            transaction: unitOfWorkContext.Transaction,
             cancellationToken: cancellationToken));
     }
 

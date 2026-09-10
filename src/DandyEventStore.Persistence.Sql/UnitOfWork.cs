@@ -1,3 +1,6 @@
+using DandyEventStore.Persistence.Sql.Connections;
+using DandyEventStore.Persistence.Sql.Repositories;
+
 namespace DandyEventStore.Persistence.Sql;
 
 internal sealed class UnitOfWork : IUnitOfWork, IDisposable

@@ -1,6 +1,6 @@
 using System.Data;
 
-namespace DandyEventStore.Persistence.Sql;
+namespace DandyEventStore.Persistence.Sql.Connections;
 
 public static class DbConnectionFactoryExtensions
 {
