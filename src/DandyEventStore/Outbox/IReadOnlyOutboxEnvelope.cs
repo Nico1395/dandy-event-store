@@ -1,6 +1,6 @@
 namespace DandyEventStore.Outbox;
 
-public interface IReadOnlyOutboxEvent
+public interface IReadOnlyOutboxEnvelope
 {
     string StreamId { get; }
     object Event { get; }

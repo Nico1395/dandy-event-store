@@ -1,6 +1,6 @@
 namespace DandyEventStore.Outbox;
 
-public sealed class OutboxEnvelope : IReadOnlyOutboxEvent
+public sealed class OutboxEnvelope : IReadOnlyOutboxEnvelope
 {
     public required string StreamId { get; init; }
     public required object Event { get; init; }
