@@ -10,6 +10,6 @@ public abstract class PersistenceConfiguration : PluginConfiguration
     public override void ConfigureServices(IServiceCollection services)
     {
         services.AddFluentMigratorCore();
-        services.AddSingleton<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
     }
 }

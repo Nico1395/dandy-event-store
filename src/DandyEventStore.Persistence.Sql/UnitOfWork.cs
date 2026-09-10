@@ -3,14 +3,14 @@ namespace DandyEventStore.Persistence.Sql;
 internal sealed class UnitOfWork : IUnitOfWork, IDisposable
 {
     private readonly IDbConnectionFactory _dbConnectionFactory;
-    private UnitOfWorkContext _context;
+    private readonly UnitOfWorkContext _context;
 
     public UnitOfWork(
         SqlStrings sqlStrings,
         IDbConnectionFactory dbConnectionFactory)
     {
         _dbConnectionFactory = dbConnectionFactory;
-        _context = new UnitOfWorkContext(dbConnectionFactory.CreateAndOpen());
+        _context = new UnitOfWorkContext(dbConnectionFactory);
 
         Envelopes = new EnvelopeRepository(sqlStrings, _context);
         Snapshots = new SnapshotRepository(sqlStrings, _context);
@@ -25,21 +25,7 @@ internal sealed class UnitOfWork : IUnitOfWork, IDisposable
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        try
-        {
-            _context.Transaction.Commit();
-            _context.Completed = true;
-            _context.Dispose();
-        }
-        catch
-        {
-            _context.Transaction.Rollback();
-        }
-        finally
-        {
-            var connection = _dbConnectionFactory.CreateAndOpen();
-            _context = new UnitOfWorkContext(connection);
-        }
+        _context.Commit(cancellationToken);
 
         return Task.CompletedTask;
     }

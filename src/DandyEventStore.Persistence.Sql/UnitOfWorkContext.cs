@@ -2,11 +2,21 @@ using System.Data;
 
 namespace DandyEventStore.Persistence.Sql;
 
-internal sealed class UnitOfWorkContext(IDbConnection connection) : IDisposable
+internal sealed class UnitOfWorkContext : IReadOnlyUnitOfWorkContext, IDisposable
 {
-    public IDbConnection Connection { get; } = connection;
-    public IDbTransaction Transaction { get; } = connection.BeginTransaction();
-    public bool Completed { get; set; }
+    private readonly IDbConnectionFactory _dbConnectionFactory;
+    
+    public UnitOfWorkContext(IDbConnectionFactory dbConnectionFactory)
+    {
+        _dbConnectionFactory = dbConnectionFactory;
+
+        Connection = dbConnectionFactory.CreateAndOpen();
+        Transaction = Connection.BeginTransaction();
+    }
+
+    public IDbConnection Connection { get; private set; }
+    public IDbTransaction Transaction { get; private set; }
+    public bool Completed { get; private set; }
 
     public void Dispose()
     {
@@ -15,5 +25,24 @@ internal sealed class UnitOfWorkContext(IDbConnection connection) : IDisposable
 
         Transaction.Dispose();
         Connection.Dispose();
+    }
+
+    internal void Commit(CancellationToken cancellationToken)
+    {
+        try
+        {
+            Transaction.Commit();
+            Completed = true;
+        }
+        catch
+        {
+            Transaction.Rollback();
+        }
+        finally
+        {
+            Connection = _dbConnectionFactory.CreateAndOpen();
+            Transaction = Connection.BeginTransaction();
+            Completed = false;
+        }
     }
 }
