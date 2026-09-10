@@ -4,13 +4,13 @@ namespace DandyEventStore.Serialization.SystemTextJson;
 
 internal sealed class SystemTextJsonSerializer(SystemTextJsonConfiguration configuration) : ISerializer
 {
-    public string Serialize(object eventItem, Type runtimeType)
+    public string Serialize(object item, Type runtimeType)
     {
-        return JsonSerializer.Serialize(eventItem, runtimeType, configuration.Options);
+        return JsonSerializer.Serialize(item, runtimeType, configuration.Options);
     }
 
-    public object? Deserialize(string eventItem, Type eventType)
+    public object? Deserialize(string payload, Type eventType)
     {
-        return JsonSerializer.Deserialize(eventItem, eventType, configuration.Options);
+        return JsonSerializer.Deserialize(payload, eventType, configuration.Options);
     }
 }
