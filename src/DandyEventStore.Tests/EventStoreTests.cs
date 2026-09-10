@@ -1,7 +1,6 @@
 using DandyEventStore.Tests.Fixtures;
 using DandyEventStore.Tests.Mocks.ShoppingCart;
 using DandyEventStore.Tests.Mocks.ShoppingCart.Events;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace DandyEventStore.Tests;
 
@@ -10,7 +9,7 @@ public class EventStoreTests(DefaultFixture fixture) : IClassFixture<DefaultFixt
     [Fact]
     public async Task AppendEvents_ShouldAppendEventsToStream()
     {
-        var eventStore = fixture.GetRequiredService<IEventStore>();
+        var eventStore = fixture.GetEventStore();
         var cartCreated = new CartCreatedV1(Guid.NewGuid(), "123");
         var streamId = cartCreated.CartId.ToString();
 
@@ -29,7 +28,7 @@ public class EventStoreTests(DefaultFixture fixture) : IClassFixture<DefaultFixt
     [Fact]
     public async Task AppendEvents_ShouldAppendEventsToStream_ShouldCreateSnapshot()
     {
-        var eventStore = fixture.GetRequiredService<IEventStore>();
+        var eventStore = fixture.GetEventStore();
 
         var cartCreated = new CartCreatedV1(Guid.NewGuid(), "456");
         var streamId = cartCreated.CartId.ToString();

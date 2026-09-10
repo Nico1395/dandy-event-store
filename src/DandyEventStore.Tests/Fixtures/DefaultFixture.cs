@@ -40,6 +40,11 @@ public sealed class DefaultFixture : IServiceProvider, IAsyncLifetime
         return _serviceProvider.GetService(serviceType);
     }
 
+    public IEventStore GetEventStore()
+    {
+        return _serviceProvider.GetRequiredService<IEventStore>();
+    }
+
     public Task InitializeAsync()
     {
         try
