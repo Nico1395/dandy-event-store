@@ -13,13 +13,13 @@ internal sealed class EventStore(
     EventStoreConfiguration eventStoreConfiguration,
     IServiceProvider serviceProvider,
     IEnvelopeFactory envelopeFactory,
-    ISubscriberManager subscriberManager,
+    ISubscriptionManager subscriptionManager,
     ISerializer serializer,
     IUnitOfWork unitOfWork) : IEventStore
 {
     public async Task<object?> ReplayAggregateAsync(Type aggregateType, string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
     {
-        var configuration = eventStoreConfiguration.Aggregates.GetOrAddAggregateConfig(aggregateType);
+        var configuration = eventStoreConfiguration.Aggregates.GetOrAddAggregateConfiguration(aggregateType);
         var (snapshot, stream) = await GetSnapshotAndStreamAsync(configuration, streamId, version, timestamp, cancellationToken);
 
         return ReplayAggregate(configuration, streamId, snapshot, stream);
@@ -79,9 +79,9 @@ internal sealed class EventStore(
         // Commit transaction so event-store and outbox are in sync. Consumers should not be in this transaction.
         await unitOfWork.CommitAsync(cancellationToken);
 
-        // Notify sync subscribers
+        // Notify inline subscribers
         foreach (var outboxEnvelope in outboxEnvelopes)
-            await subscriberManager.NotifySyncSubscribersAsync(outboxEnvelope, cancellationToken);
+            await subscriptionManager.NotifySubscribersAsync(outboxEnvelope, SubscriberMode.Inline, cancellationToken);
 
         // Save consumers for every subscriber
         var consumers = outboxEnvelopes.SelectMany(e => e.Consumers);
@@ -150,7 +150,7 @@ internal sealed class EventStore(
         if (aggregateType == null || envelopes.Length == 0)
             return;
 
-        var aggregateConfiguration = eventStoreConfiguration.Aggregates.GetOrAddAggregateConfig(aggregateType);
+        var aggregateConfiguration = eventStoreConfiguration.Aggregates.GetOrAddAggregateConfiguration(aggregateType);
         var versionAfterAppend = envelopes.OrderByDescending(e => e.Version).First().Version;
 
         if (aggregateConfiguration.ShouldCreateSnapshot(currentVersion, versionAfterAppend))

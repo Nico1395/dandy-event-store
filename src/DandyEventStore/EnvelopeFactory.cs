@@ -6,7 +6,7 @@ public class EnvelopeFactory(EventStoreConfiguration eventStoreConfiguration) : 
 {
     public Envelope Create(string streamId, object @event, long version)
     {
-        var configuration = eventStoreConfiguration.Aggregates.GetOrAddAggregateConfig(@event.GetType());
+        var configuration = eventStoreConfiguration.Aggregates.GetOrAddAggregateConfiguration(@event.GetType());
         var envelope = new Envelope
         {
             StreamId = streamId,
