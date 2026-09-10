@@ -4,5 +4,5 @@ namespace DandyEventStore.Subscribers;
 
 internal interface ISubscriptionManager
 {
-    Task NotifySubscribersAsync(OutboxEnvelope outboxEnvelope, SubscriberMode mode, CancellationToken cancellationToken);
+    Task NotifySubscribersAsync(OutboxEnvelope outboxEnvelope, SubscriberMode[] modes, CancellationToken cancellationToken);
 }

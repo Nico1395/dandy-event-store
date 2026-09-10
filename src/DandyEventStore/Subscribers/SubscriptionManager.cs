@@ -9,7 +9,7 @@ internal sealed class SubscriptionManager(
     EventStoreConfiguration eventStoreConfiguration,
     IServiceProvider serviceProvider) : ISubscriptionManager
 {
-    public async Task NotifySubscribersAsync(OutboxEnvelope outboxEnvelope, SubscriberMode mode, CancellationToken cancellationToken)
+    public async Task NotifySubscribersAsync(OutboxEnvelope outboxEnvelope, SubscriberMode[] modes, CancellationToken cancellationToken)
     {
         // We are looking for the event type in the subscribers-configuration. A subscriber will not be notified
         // if the subscriber type is not configured. A subscriber type is configured if it's manually added or has the 
@@ -22,8 +22,12 @@ internal sealed class SubscriptionManager(
         if (handleAsync == null)
             throw new UnreachableException($"Subscribers of type '{handleAsync}' should have a method '{nameof(ISubscriber<>.HandleAsync)}'.");
 
+        // Only resolve consumers that are configured with the right mode and that have not yet successfully consumed the event.
+        // This way we can avoid resolving subscribers that should not receive the event or won't be invoked.
+
         var subscribers = subscriberConfigurations
-            .Where(c => c.Mode == mode)
+            .Where(c => modes.Contains(c.Mode))
+            .Where(c => outboxEnvelope.HasConsumed(c.Key))
             .Select(c => (c, serviceProvider.GetRequiredService(c.AbstractionType)));
 
         foreach (var (configuration, subscriber) in subscribers)
