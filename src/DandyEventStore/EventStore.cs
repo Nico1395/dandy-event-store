@@ -24,7 +24,20 @@ internal sealed class EventStore(
         var configuration = eventStoreConfiguration.Aggregates.GetOrAddAggregateConfiguration(aggregateType);
         var (snapshot, stream) = await GetSnapshotAndStreamAsync(configuration, streamId, version, timestamp, cancellationToken);
 
-        return ReplayAggregate(configuration, streamId, snapshot, stream);
+        var hasDuplicates = stream.GroupBy(e => e.Version).Any(c => c.Count() > 1);
+        if (hasDuplicates)
+            throw new InvalidOperationException($"Stream with ID '{streamId}' has duplicate events.");
+
+        stream = stream.OrderBy(e => e.Version).ToArray();
+
+        if (configuration.FactoryFunc != null)
+            return configuration.FactoryFunc(snapshot?.Aggregate, stream);
+
+        var factoryType = typeof(IAggregateFactory<>).MakeGenericType(configuration.RuntimeType);
+        var factory = serviceProvider.GetRequiredService(factoryType);
+
+        var create = factoryType.GetMethod(nameof(IAggregateFactory<>.Create)) ?? throw new UnreachableException();
+        return create.Invoke(factory, [snapshot?.Aggregate, stream]);
     }
 
     public async Task<Envelope[]> GetStreamAsync(string streamId, long? fromVersion, long? toVersion, DateTime? fromTimestamp, DateTime? toTimestamp, CancellationToken cancellationToken)
@@ -122,24 +135,6 @@ internal sealed class EventStore(
             cancellationToken);
 
         return (snapshot, stream);
-    }
-
-    private object? ReplayAggregate(AggregateConfiguration configuration, string streamId, Snapshot? snapshot, Envelope[] stream)
-    {
-        var hasDuplicates = stream.GroupBy(e => e.Version).Any(c => c.Count() > 1);
-        if (hasDuplicates)
-            throw new InvalidOperationException($"Stream with ID '{streamId}' has duplicate events.");
-
-        stream = stream.OrderBy(e => e.Version).ToArray();
-
-        if (configuration.FactoryFunc != null)
-            return configuration.FactoryFunc(snapshot?.Aggregate, stream);
-
-        var factoryType = typeof(IAggregateFactory<>).MakeGenericType(configuration.RuntimeType);
-        var factory = serviceProvider.GetRequiredService(factoryType);
-
-        var create = factoryType.GetMethod(nameof(IAggregateFactory<>.Create)) ?? throw new UnreachableException();
-        return create.Invoke(factory, [snapshot?.Aggregate, stream]);
     }
 
     private async Task CreateSnapshotAsync(Type? aggregateType, string streamId, Envelope[] envelopes, long currentVersion, CancellationToken cancellationToken)
