@@ -18,21 +18,6 @@ internal sealed class EventStore(
     ISerializer serializer,
     IUnitOfWork unitOfWork) : IEventStore
 {
-    public async Task<TAggregate?> ReplayAggregateAsync<TAggregate>(string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
-        where TAggregate : class
-    {
-        var configuration = eventStoreConfiguration.Aggregates.GetOrAddAggregateConfig(typeof(TAggregate));
-        var (snapshot, stream) = await GetSnapshotAndStreamAsync(configuration, streamId, version, timestamp, cancellationToken);
-        if (stream.Length == 0)
-            return null;
-
-        if (configuration.FactoryFunc != null)
-            return configuration.FactoryFunc(snapshot?.Aggregate, stream) as TAggregate;
-
-        var aggregateFactory = serviceProvider.GetRequiredService<IAggregateFactory<TAggregate>>();
-        return aggregateFactory.Create(snapshot?.Aggregate as TAggregate, stream);
-    }
-
     public async Task<object?> ReplayAggregateAsync(Type aggregateType, string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
     {
         var configuration = eventStoreConfiguration.Aggregates.GetOrAddAggregateConfig(aggregateType);
@@ -40,14 +25,7 @@ internal sealed class EventStore(
         if (stream.Length == 0)
             return null;
 
-        if (configuration.FactoryFunc != null)
-            return configuration.FactoryFunc(snapshot?.Aggregate, stream);
-
-        var factoryType = typeof(IAggregateFactory<>).MakeGenericType(aggregateType);
-        var factory = serviceProvider.GetRequiredService(factoryType);
-
-        var create = factoryType.GetMethod(nameof(IAggregateFactory<>.Create)) ?? throw new UnreachableException();
-        return create.Invoke(factory, [snapshot?.Aggregate, stream]);
+        return ReplayAggregate(configuration, snapshot, stream);
     }
 
     public async Task<Envelope[]> GetStreamAsync(string streamId, long? fromVersion, long? toVersion, DateTime? fromTimestamp, DateTime? toTimestamp, CancellationToken cancellationToken)
@@ -68,7 +46,7 @@ internal sealed class EventStore(
         return envelopes.ToArray();
     }
 
-    public async Task AppendAsync(string streamId, object[] events, CancellationToken cancellationToken)
+    public async Task AppendAsync(Type? aggregateType, string streamId, object[] events, CancellationToken cancellationToken)
     {
         if (events.Length == 0)
             return;
@@ -76,9 +54,12 @@ internal sealed class EventStore(
         if (string.IsNullOrWhiteSpace(streamId))
             throw new ArgumentException("Stream ID cannot be null or whitespace.", nameof(streamId));
 
-        // 1. Create envelopes
+        // Fetch current version
         var currentVersion = await unitOfWork.Envelopes.GetStreamVersionAsync(streamId, cancellationToken);
-        var envelopes = events.Select(e => envelopeFactory.Create(streamId, e, currentVersion++)).ToArray();
+        
+        // Create envelopes
+        var envelopeVersion = currentVersion;
+        var envelopes = events.Select(e => envelopeFactory.Create(streamId, e, envelopeVersion++)).ToArray();
         var rawEnvelopes = envelopes.Select(e => new RawEnvelope
         {
             StreamId = e.StreamId,
@@ -88,23 +69,24 @@ internal sealed class EventStore(
             EventKey = e.EventKey,
         });
 
-        // 3. Insert events
+        // Insert events
         await unitOfWork.Envelopes.InsertAsync(streamId, rawEnvelopes.ToArray(), cancellationToken);
 
-        // 4. Insert outbox envelopes
+        // Insert outbox envelopes
         var outboxEnvelopes = envelopes.Select(OutboxEnvelope.Create).ToArray();
         await unitOfWork.Outbox.InsertEnvelopesAsync(GetRaw(outboxEnvelopes).ToArray(), cancellationToken);
 
-        // 5. Create and insert a snapshot if configured
-        // TODO
+        // Create and insert a snapshot if configured
+        await CreateSnapshotAsync(aggregateType, streamId, envelopes, currentVersion, cancellationToken);
 
-        // 6. Commit transaction so event-store and outbox are in sync. Consumers should not be in this transaction.
+        // Commit transaction so event-store and outbox are in sync. Consumers should not be in this transaction.
         await unitOfWork.CommitAsync(cancellationToken);
 
-        // 7. Notify sync subscribers
+        // Notify sync subscribers
         foreach (var outboxEnvelope in outboxEnvelopes)
             await subscriberManager.NotifySyncSubscribersAsync(outboxEnvelope, cancellationToken);
 
+        // Save consumers for every subscriber
         var consumers = outboxEnvelopes.SelectMany(e => e.Consumers);
         await unitOfWork.Outbox.InsertConsumersAsync(GetRaw(consumers).ToArray(), cancellationToken);
         await unitOfWork.CommitAsync(cancellationToken);
@@ -146,6 +128,55 @@ internal sealed class EventStore(
             cancellationToken);
 
         return (snapshot, stream);
+    }
+
+    private object? ReplayAggregate(AggregateConfiguration configuration, Snapshot? snapshot, Envelope[] stream)
+    {
+        if (stream.Length == 0)
+            return null;
+
+        var hasDuplicates = stream.GroupBy(e => e.Version).Any(c => c.Count() > 1);
+        if (hasDuplicates)
+            throw new InvalidOperationException($"Stream {stream.First().StreamId} has duplicate events.");
+
+        stream = stream.OrderBy(e => e.Version).ToArray();
+
+        if (configuration.FactoryFunc != null)
+            return configuration.FactoryFunc(snapshot?.Aggregate, stream);
+
+        var factoryType = typeof(IAggregateFactory<>).MakeGenericType(configuration.RuntimeType);
+        var factory = serviceProvider.GetRequiredService(factoryType);
+
+        var create = factoryType.GetMethod(nameof(IAggregateFactory<>.Create)) ?? throw new UnreachableException();
+        return create.Invoke(factory, [snapshot?.Aggregate, stream]);
+    }
+
+    private async Task CreateSnapshotAsync(Type? aggregateType, string streamId, Envelope[] envelopes, long currentVersion, CancellationToken cancellationToken)
+    {
+        if (aggregateType == null || envelopes.Length == 0)
+            return;
+
+        var aggregateConfiguration = eventStoreConfiguration.Aggregates.GetOrAddAggregateConfig(aggregateType);
+        var versionAfterAppend = envelopes.OrderByDescending(e => e.Version).First().Version;
+
+        if (aggregateConfiguration.ShouldCreateSnapshot(currentVersion, versionAfterAppend))
+        {
+            var (snapshot, stream) = await GetSnapshotAndStreamAsync(aggregateConfiguration, streamId, currentVersion, null, cancellationToken);
+            var aggregate = ReplayAggregate(aggregateConfiguration, snapshot, stream.Concat(envelopes).ToArray());
+            if (aggregate == null)
+                throw new InvalidOperationException($"Failed to replay aggregate {aggregateType.FullName} from stream {streamId} to create snapshot.");
+
+            var rawSnapshot = new RawSnapshot
+            {
+                StreamId = streamId,
+                Version = versionAfterAppend,
+                Timestamp = DateTime.UtcNow,
+                Payload = serializer.Serialize(aggregate, aggregateType),
+                AggregateKey = aggregateConfiguration.Key,
+            };
+
+            await unitOfWork.Snapshots.InsertAsync(rawSnapshot, cancellationToken);
+        }
     }
 
     private IEnumerable<RawOutboxEnvelope> GetRaw(IEnumerable<OutboxEnvelope> envelopes)

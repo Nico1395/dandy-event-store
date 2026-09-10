@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-
 namespace DandyEventStore.Aggregates.Configuration;
 
 public sealed class AggregateConfiguration
@@ -15,9 +13,12 @@ public sealed class AggregateConfiguration
         return SnapshotInterval > 0;
     }
 
-    public bool ShouldCreateSnapshot(long originalStreamVersion, long streamVersion)
+    public bool ShouldCreateSnapshot(long currentVersion, long versionAfterAppend)
     {
-        var diff = streamVersion - originalStreamVersion;
-        return UseSnapshots() && diff % SnapshotInterval == 0;
+        if (!UseSnapshots() || currentVersion == versionAfterAppend)
+            return false;
+
+        var diff = versionAfterAppend - currentVersion;
+        return diff % SnapshotInterval == 0;
     }
 }
