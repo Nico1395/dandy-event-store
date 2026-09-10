@@ -6,11 +6,6 @@ namespace DandyEventStore.Tests.Mocks.ShoppingCart;
 [Aggregate]
 internal sealed class Cart
 {
-    private Cart(Envelope[] envelopes)
-    {
-        Apply(envelopes);
-    }
-
     public required Guid Id { get; init; }
     public long Version { get; private set; }
     public required string UserId { get; init; }
@@ -31,17 +26,14 @@ internal sealed class Cart
             if (cartCreated == null)
                 throw new InvalidOperationException();
 
-            snapshot = new Cart(envelopes)
+            snapshot = new Cart
             {
                 Id = cartCreated.CartId,
                 UserId = cartCreated.UserId,
             };
         }
-        else
-        {
-            snapshot.Apply(envelopes);
-        }
 
+        snapshot.Apply(envelopes);
         return snapshot;
     }
 

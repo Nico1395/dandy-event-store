@@ -56,7 +56,7 @@ internal sealed class EventStore(
         var envelopes = rawEnvelopes.Select(r =>
         {
             if (!eventStoreConfiguration.Events.EventConfigsByKey.TryGetValue(r.EventKey, out var configuration))
-                throw new InvalidOperationException($"Event type {r.EventKey} is not configured.");
+                throw new InvalidOperationException($"Envelope type {r.EventKey} is not configured.");
 
             var @event = serializer.Deserialize(r.Payload, configuration.RuntimeType);
             if (@event == null)
@@ -153,7 +153,7 @@ internal sealed class EventStore(
         return envelopes.Select(e =>
         {
             if (!eventStoreConfiguration.Events.EventConfigsByKey.TryGetValue(e.EventKey, out var configuration))
-                throw new InvalidOperationException($"Event type {e.EventKey} is not configured.");
+                throw new InvalidOperationException($"Envelope type {e.EventKey} is not configured.");
 
             return new RawOutboxEnvelope
             {

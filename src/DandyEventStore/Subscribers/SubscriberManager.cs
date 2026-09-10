@@ -26,8 +26,8 @@ internal sealed class SubscriberManager(
                 if (handleAsync == null)
                     throw new UnreachableException($"Subscribers of type '{syncSubscriberType}' should have a method '{nameof(ISubscriber<>.HandleAsync)}'.");
 
-                var context = new SubscriberContext { Event = outboxEnvelope, };
-                if (handleAsync.Invoke(subscriber, [outboxEnvelope, context, cancellationToken]) is not Task task)
+                var context = new SubscriberContext { Envelope = outboxEnvelope, };
+                if (handleAsync.Invoke(subscriber, [outboxEnvelope.Event, context, cancellationToken]) is not Task task)
                     throw new InvalidOperationException($"Subscriber of type '{syncSubscriberType}' should return a Task.");
 
                 await task;
