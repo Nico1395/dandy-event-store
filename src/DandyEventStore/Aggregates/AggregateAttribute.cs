@@ -4,5 +4,5 @@ namespace DandyEventStore.Aggregates;
 public sealed class AggregateAttribute : Attribute
 {
     public string? Key { get; init; }
-    public int? SnapshotInterval { get; init; }
+    public int SnapshotInterval { get; init; } = -1;
 }

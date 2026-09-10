@@ -30,7 +30,7 @@ public sealed class AggregatesConfiguration
         {
             Key = attribute?.Key ?? aggregateType.Name,
             RuntimeType = aggregateType,
-            SnapshotInterval = attribute?.SnapshotInterval,
+            SnapshotInterval = attribute?.SnapshotInterval ?? -1,
         };
 
         var factoryMethod = aggregateType
