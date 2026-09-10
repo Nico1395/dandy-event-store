@@ -25,7 +25,7 @@ public static class EventStoreServiceCollectionExtensions
 
         services.AddSingleton(configuration);
         services.AddScoped<IEventStore, EventStore>();
-        services.AddScoped<ISubscriberManager, SubscriberManager>();
+        services.AddScoped<ISubscriptionManager, SubscriptionManager>();
         services.AddSingleton<IEnvelopeFactory, EnvelopeFactory>();
 
         if (configuration.Assemblies != null)
