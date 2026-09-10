@@ -44,7 +44,7 @@ public class Migration_20260907191400 : Migration
             .WithColumn(Tables.OutboxEnvelopeConsumers.StreamId).AsString(255).NotNullable()
             .WithColumn(Tables.OutboxEnvelopeConsumers.Version).AsInt64().NotNullable()
             .WithColumn(Tables.OutboxEnvelopeConsumers.ConsumerKey).AsString(255).NotNullable()
-            .WithColumn(Tables.OutboxEnvelopeConsumers.Payload).AsString(int.MaxValue).NotNullable()
+            .WithColumn(Tables.OutboxEnvelopeConsumers.Type).AsInt16().NotNullable()
             .WithColumn(Tables.OutboxEnvelopeConsumers.ConsumedAt).AsDateTime().Nullable()
             .WithColumn(Tables.OutboxEnvelopeConsumers.FailedAt).AsDateTime().Nullable();
         Create.PrimaryKey("pk_outbox_envelope_consumers")

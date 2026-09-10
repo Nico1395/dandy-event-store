@@ -68,8 +68,63 @@ internal sealed class SqliteSqlStrings : SqlStrings
                                                      @AggregateKey)
                                              """;
 
-    public override string GetOutboxEnvelopes { get; }
-    public override string InsertOutboxEnvelopes { get; }
-    public override string DeleteOutboxEnvelopes { get; }
-    public override string InsertOutboxEnvelopeConsumers { get; }
+    public override string GetOutboxEnvelopes => $"""
+                                                        SELECT
+                                                            e.{Tables.OutboxEnvelopes.StreamId} AS StreamId,
+                                                            e.{Tables.OutboxEnvelopes.Payload} AS Payload,
+                                                            e.{Tables.OutboxEnvelopes.Version} AS Version,
+                                                            e.{Tables.OutboxEnvelopes.Timestamp} AS Timestamp,
+                                                            e.{Tables.OutboxEnvelopes.EventKey} AS EventKey,
+                                                            c.{Tables.OutboxEnvelopeConsumers.StreamId} AS ConsumerStreamId,
+                                                            c.{Tables.OutboxEnvelopeConsumers.Version} AS ConsumerVersion,
+                                                            c.{Tables.OutboxEnvelopeConsumers.ConsumerKey} AS ConsumerKey,
+                                                            c.{Tables.OutboxEnvelopeConsumers.Type} AS ConsumerType,
+                                                            c.{Tables.OutboxEnvelopeConsumers.ConsumedAt} AS ConsumedAt,
+                                                            c.{Tables.OutboxEnvelopeConsumers.FailedAt} AS FailedAt
+                                                        FROM {Tables.OutboxEnvelopes.Table} e
+                                                        LEFT JOIN {Tables.OutboxEnvelopeConsumers.Table} c
+                                                            ON c.{Tables.OutboxEnvelopeConsumers.StreamId} = e.{Tables.OutboxEnvelopes.StreamId}
+                                                            AND c.{Tables.OutboxEnvelopeConsumers.Version} = e.{Tables.OutboxEnvelopes.Version}
+                                                    """;
+
+    public override string InsertOutboxEnvelopes => $"""
+                                                         INSERT INTO {Tables.OutboxEnvelopes.Table} (
+                                                             {Tables.OutboxEnvelopes.StreamId},
+                                                             {Tables.OutboxEnvelopes.Payload},
+                                                             {Tables.OutboxEnvelopes.Version},
+                                                             {Tables.OutboxEnvelopes.Timestamp},
+                                                             {Tables.OutboxEnvelopes.EventKey})
+                                                         VALUES (
+                                                             @StreamId,
+                                                             @Payload,
+                                                             @Version,
+                                                             @Timestamp,
+                                                             @EventKey)
+                                                     """;
+
+    public override string DeleteOutboxEnvelopes => $"""
+                                                         DELETE FROM {Tables.OutboxEnvelopeConsumers.Table}
+                                                         WHERE {Tables.OutboxEnvelopeConsumers.StreamId} = @StreamId
+                                                         AND {Tables.OutboxEnvelopeConsumers.Version} = @Version;
+                                                         DELETE FROM {Tables.OutboxEnvelopes.Table}
+                                                         WHERE {Tables.OutboxEnvelopes.StreamId} = @StreamId
+                                                         AND {Tables.OutboxEnvelopes.Version} = @Version
+                                                     """;
+
+    public override string InsertOutboxEnvelopeConsumers => $"""
+                                                                INSERT INTO {Tables.OutboxEnvelopeConsumers.Table} (
+                                                                    {Tables.OutboxEnvelopeConsumers.StreamId},
+                                                                    {Tables.OutboxEnvelopeConsumers.Version},
+                                                                    {Tables.OutboxEnvelopeConsumers.ConsumerKey},
+                                                                    {Tables.OutboxEnvelopeConsumers.Type},
+                                                                    {Tables.OutboxEnvelopeConsumers.ConsumedAt},
+                                                                    {Tables.OutboxEnvelopeConsumers.FailedAt})
+                                                                VALUES (
+                                                                    @StreamId,
+                                                                    @Version,
+                                                                    @ConsumerKey,
+                                                                    @Type,
+                                                                    @ConsumedAt,
+                                                                    @FailedAt)
+                                                            """;
 }
