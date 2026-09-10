@@ -33,9 +33,9 @@ public sealed class AggregateConfigurationBuilder<TAggregate>
     {
         _configuration.FactoryFunc = (aggregate, envelopes) =>
         {
-            return aggregate is not TAggregate casted
-                ? throw new UnreachableException()
-                : factoryFunc(casted, envelopes);
+            return aggregate?.GetType() == _configuration.RuntimeType
+                ? factoryFunc((TAggregate?)aggregate, envelopes)
+                : throw new UnreachableException($"Aggregate {aggregate?.GetType().Name} is not of type {typeof(TAggregate).Name}.");
         };
 
         return this;
