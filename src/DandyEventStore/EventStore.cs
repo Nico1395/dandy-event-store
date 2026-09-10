@@ -6,7 +6,6 @@ using DandyEventStore.Persistence;
 using DandyEventStore.Persistence.Entities;
 using DandyEventStore.Persistence.Mapping;
 using DandyEventStore.Serialization;
-using DandyEventStore.Subscribers;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DandyEventStore;
@@ -15,7 +14,6 @@ internal sealed class EventStore(
     EventStoreConfiguration eventStoreConfiguration,
     IServiceProvider serviceProvider,
     IEnvelopeFactory envelopeFactory,
-    ISubscriptionManager subscriptionManager,
     ISerializer serializer,
     IOutbox outbox,
     IUnitOfWork unitOfWork) : IEventStore
@@ -47,7 +45,6 @@ internal sealed class EventStore(
         var envelopes = InternalMapper.MapFromEntity(
             eventStoreConfiguration,
             serializer,
-            envelopeFactory,
             envelopeEntities);
 
         return envelopes.ToArray();

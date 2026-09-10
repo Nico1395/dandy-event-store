@@ -19,7 +19,7 @@ internal static class InternalMapper
         });
     }
 
-    public static IEnumerable<Envelope> MapFromEntity(EventStoreConfiguration eventStoreConfiguration, ISerializer serializer, IEnvelopeFactory envelopeFactory, IEnumerable<EnvelopeEntity> envelopeEntities)
+    public static IEnumerable<Envelope> MapFromEntity(EventStoreConfiguration eventStoreConfiguration, ISerializer serializer, IEnumerable<EnvelopeEntity> envelopeEntities)
     {
         return envelopeEntities.Select(r =>
         {
@@ -30,7 +30,15 @@ internal static class InternalMapper
             if (@event == null)
                 throw new InvalidOperationException($"Failed to deserialize event {r.EventKey} from payload.");
 
-            return envelopeFactory.Create(r.StreamId, @event, r.Version);
+            return new Envelope
+            {
+                StreamId = r.StreamId,
+                Event = @event,
+                Version = r.Version,
+                Timestamp = r.Timestamp,
+                EventKey = r.EventKey,
+                RuntimeType = configuration.RuntimeType,
+            };
         });
     }
 
