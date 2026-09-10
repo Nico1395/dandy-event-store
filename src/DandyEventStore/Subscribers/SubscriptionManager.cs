@@ -27,7 +27,7 @@ internal sealed class SubscriptionManager(
 
         var subscribers = subscriberConfigurations
             .Where(c => modes.Contains(c.Mode))
-            .Where(c => outboxEnvelope.HasConsumed(c.Key))
+            .Where(c => !outboxEnvelope.HasConsumed(c.Key))
             .Select(c => (c, serviceProvider.GetRequiredService(c.AbstractionType)));
 
         foreach (var (configuration, subscriber) in subscribers)
