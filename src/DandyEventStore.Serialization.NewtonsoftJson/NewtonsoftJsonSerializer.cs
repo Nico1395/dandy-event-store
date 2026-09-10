@@ -4,13 +4,13 @@ namespace DandyEventStore.Serialization.NewtonsoftJson;
 
 internal sealed class NewtonsoftJsonSerializer(NewtonsoftJsonConfiguration configuration) : ISerializer
 {
-    public string Serialize(object eventItem, Type runtimeType)
+    public string Serialize(object item, Type runtimeType)
     {
-        return JsonConvert.SerializeObject(eventItem, runtimeType, configuration.Settings);
+        return JsonConvert.SerializeObject(item, runtimeType, configuration.Settings);
     }
 
-    public object? Deserialize(string eventItem, Type eventType)
+    public object? Deserialize(string payload, Type eventType)
     {
-        return JsonConvert.DeserializeObject(eventItem, eventType, configuration.Settings);
+        return JsonConvert.DeserializeObject(payload, eventType, configuration.Settings);
     }
 }
