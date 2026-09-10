@@ -29,22 +29,36 @@ public class Migration_20260907205400 : Migration
             .WithColumn(Tables.OutboxEnvelopes.Timestamp).AsDateTime().NotNullable()
             .WithColumn(Tables.OutboxEnvelopes.EventKey).AsString(255).NotNullable();
 
-        Create.Table(Tables.OutboxEnvelopeConsumers.Table)
-            .WithColumn(Tables.OutboxEnvelopeConsumers.StreamId).AsString(255).NotNullable().PrimaryKey()
-            .WithColumn(Tables.OutboxEnvelopeConsumers.Version).AsInt64().NotNullable().PrimaryKey()
-            .WithColumn(Tables.OutboxEnvelopeConsumers.ConsumerKey).AsString(255).NotNullable().PrimaryKey()
-            .WithColumn(Tables.OutboxEnvelopeConsumers.Type).AsInt16().NotNullable()
-            .WithColumn(Tables.OutboxEnvelopeConsumers.ConsumedAt).AsDateTime().Nullable()
-            .WithColumn(Tables.OutboxEnvelopeConsumers.FailedAt).AsDateTime().Nullable();
+        // SQLite doesnt support the foreign key syntax of FluentMigrator
+        Execute.Sql($"""
+                     CREATE TABLE "{Tables.OutboxEnvelopeConsumers.Table}" (
+                         "{Tables.OutboxEnvelopeConsumers.StreamId}" TEXT NOT NULL,
+                         "{Tables.OutboxEnvelopeConsumers.Version}" INTEGER NOT NULL,
+                         "{Tables.OutboxEnvelopeConsumers.ConsumerKey}" TEXT NOT NULL,
+                         "{Tables.OutboxEnvelopeConsumers.Type}" INTEGER NOT NULL,
+                         "{Tables.OutboxEnvelopeConsumers.ConsumedAt}" DATETIME NULL,
+                         "{Tables.OutboxEnvelopeConsumers.FailedAt}" DATETIME NULL,
 
-        Create.ForeignKey("fk_outbox_envelope_consumers")
-            .FromTable(Tables.OutboxEnvelopeConsumers.Table).ForeignColumns(Tables.OutboxEnvelopeConsumers.StreamId, Tables.OutboxEnvelopeConsumers.Version)
-            .ToTable(Tables.OutboxEnvelopes.Table).PrimaryColumns(Tables.OutboxEnvelopes.StreamId, Tables.OutboxEnvelopes.Version);
+                         PRIMARY KEY (
+                             "{Tables.OutboxEnvelopeConsumers.StreamId}",
+                             "{Tables.OutboxEnvelopeConsumers.Version}",
+                             "{Tables.OutboxEnvelopeConsumers.ConsumerKey}"
+                         ),
+
+                         FOREIGN KEY (
+                             "{Tables.OutboxEnvelopeConsumers.StreamId}",
+                             "{Tables.OutboxEnvelopeConsumers.Version}"
+                         )
+                         REFERENCES "{Tables.OutboxEnvelopes.Table}" (
+                             "{Tables.OutboxEnvelopes.StreamId}",
+                             "{Tables.OutboxEnvelopes.Version}"
+                         )
+                     );
+                     """);
     }
 
     public override void Down()
     {
-        Delete.ForeignKey("fk_outbox_envelope_consumers");
         Delete.Table(Tables.OutboxEnvelopeConsumers.Table);
         Delete.Table(Tables.OutboxEnvelopes.Table);
         Delete.Table(Tables.Snapshots.Table);
