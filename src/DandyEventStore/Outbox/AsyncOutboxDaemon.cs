@@ -17,7 +17,7 @@ internal sealed class AsyncOutboxDaemon(
 
             try
             {
-                await outbox.ExecuteIntervalAsync(stoppingToken);
+                await outbox.CheckAndProcessAsync(stoppingToken);
             }
             catch (Exception exception)
             {

@@ -35,7 +35,7 @@ internal sealed class Outbox(
         await unitOfWork.Outbox.InsertConsumersAsync(outboxConsumerEntities, cancellationToken);
     }
 
-    public async Task ExecuteIntervalAsync(CancellationToken cancellationToken)
+    public async Task CheckAndProcessAsync(CancellationToken cancellationToken)
     {
         var rawEnvelopes = await unitOfWork.Outbox.GetEnvelopesAsync(cancellationToken);
 

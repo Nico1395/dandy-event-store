@@ -1,8 +1,8 @@
 namespace DandyEventStore.Outbox;
 
-internal interface IOutbox
+public interface IOutbox
 {
     Task PublishAsync(OutboxEnvelope[] outboxEnvelopes, CancellationToken cancellationToken);
     Task NotifyInlineConsumersAsync(OutboxEnvelope[] outboxEnvelopes, CancellationToken cancellationToken);
-    Task ExecuteIntervalAsync(CancellationToken cancellationToken);
+    Task CheckAndProcessAsync(CancellationToken cancellationToken);
 }
