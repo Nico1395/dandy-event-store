@@ -48,7 +48,7 @@ internal sealed class NpgsqlSqlStrings : SqlStrings
                                                        {Tables.Snapshots.Timestamp},
                                                        {Tables.Snapshots.AggregateKey}
                                                    FROM {Schema.Name}.{Tables.Snapshots.Table}
-                                                   WHERE {Tables.Snapshots.Version} <= @Version AND {Tables.Snapshots.StreamId} = @StreamId
+                                                   WHERE {Tables.Snapshots.StreamId} = @StreamId AND (@ToVersion IS NULL OR {Tables.Snapshots.Version} <= @ToVersion)
                                                    ORDER BY {Tables.Snapshots.Version} DESC
                                                    LIMIT 1
                                                """;

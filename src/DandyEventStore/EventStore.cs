@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using DandyEventStore.Configuration;
-using DandyEventStore.Configuration.Aggregates;
 using DandyEventStore.Outbox;
 using DandyEventStore.Persistence;
 using DandyEventStore.Persistence.Entities;
@@ -18,10 +17,10 @@ internal sealed class EventStore(
     IOutbox outbox,
     IUnitOfWork unitOfWork) : IEventStore
 {
-    public async Task<object?> ReplayAggregateAsync(Type aggregateType, string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
+    public async Task<object?> ReplayAggregateAsync(Type aggregateType, string streamId, long? toVersion, DateTime? toTimestamp, CancellationToken cancellationToken)
     {
         var configuration = eventStoreConfiguration.Aggregates.GetOrAddAggregateConfiguration(aggregateType);
-        var (snapshot, stream) = await GetSnapshotAndStreamAsync(configuration, streamId, version, timestamp, cancellationToken);
+        var (snapshot, stream) = await this.ReplayStreamAsync(streamId, toVersion, toTimestamp, cancellationToken);
 
         var hasDuplicates = stream.GroupBy(e => e.Version).Any(c => c.Count() > 1);
         if (hasDuplicates)
@@ -48,6 +47,30 @@ internal sealed class EventStore(
             envelopeEntities);
 
         return envelopes.ToArray();
+    }
+
+    public async Task<Snapshot?> GetLastSnapshotAsync(string streamId, long? version, CancellationToken cancellationToken)
+    {
+        var snapshotEntity = await unitOfWork.Snapshots.GetLatestSnapshotAsync(streamId, version, cancellationToken);
+        if (snapshotEntity == null)
+            return null;
+
+        if (!eventStoreConfiguration.Aggregates.AggregatesByKey.TryGetValue(snapshotEntity.AggregateKey, out var configuration) || !configuration.UseSnapshots())
+            return null;
+
+        var aggregate = serializer.Deserialize(snapshotEntity.Payload, configuration.RuntimeType);
+        if (aggregate == null)
+            return null;
+
+        return new Snapshot
+        {
+            StreamId = snapshotEntity.StreamId,
+            Version = snapshotEntity.Version,
+            Timestamp = snapshotEntity.Timestamp,
+            Aggregate = aggregate,
+            AggregateKey = snapshotEntity.AggregateKey,
+            RuntimeType = configuration.RuntimeType,
+        };
     }
 
     public async Task AppendAsync(Type? aggregateType, string streamId, object[] events, CancellationToken cancellationToken)
@@ -82,44 +105,6 @@ internal sealed class EventStore(
         // Notify inline subscribers
         await outbox.NotifyInlineConsumersAsync(outboxEnvelopes, cancellationToken);
         await unitOfWork.CommitAsync(cancellationToken);
-    }
-
-    private async Task<(Snapshot? snapshot, Envelope[] Stream)> GetSnapshotAndStreamAsync(AggregateConfiguration configuration, string streamId, long? version, DateTime? timestamp, CancellationToken cancellationToken)
-    {
-        Snapshot? snapshot = null;
-        if (configuration.UseSnapshots())
-        {
-            var rawSnapshot = await unitOfWork.Snapshots.GetLastSnapshotAsync(streamId, version ?? 0, cancellationToken);
-            if (rawSnapshot != null)
-            {
-                var aggregate = serializer.Deserialize(rawSnapshot.Payload, configuration.RuntimeType);
-                if (aggregate != null)
-                {
-                    snapshot = new Snapshot
-                    {
-                        StreamId = rawSnapshot.StreamId,
-                        Version = rawSnapshot.Version,
-                        Timestamp = rawSnapshot.Timestamp,
-                        Aggregate = aggregate,
-                        AggregateKey = rawSnapshot.AggregateKey,
-                        RuntimeType = configuration.RuntimeType,
-                    };
-                }
-            }
-
-            if (snapshot != null && snapshot.RuntimeType != configuration.RuntimeType)
-                throw new InvalidOperationException($"Snapshot for stream {streamId} is of type {snapshot.Aggregate.GetType().FullName}, but expected {configuration.RuntimeType.FullName}.");
-        }
-
-        var stream = await GetStreamAsync(
-            streamId,
-            fromVersion: snapshot?.Version + 1,
-            toVersion: version,
-            fromTimestamp: null,
-            toTimestamp: timestamp,
-            cancellationToken);
-
-        return (snapshot, stream);
     }
 
     private async Task CreateSnapshotAsync(Type? aggregateType, string streamId, Envelope[] envelopes, long currentVersion, CancellationToken cancellationToken)
