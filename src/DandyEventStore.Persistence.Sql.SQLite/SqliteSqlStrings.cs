@@ -48,7 +48,7 @@ internal sealed class SqliteSqlStrings : SqlStrings
                                                        {Tables.Snapshots.Timestamp} AS Timestamp,
                                                        {Tables.Snapshots.AggregateKey} AS AggregateKey
                                                    FROM {Tables.Snapshots.Table}
-                                                   WHERE {Tables.Snapshots.Version} <= @Version AND {Tables.Snapshots.StreamId} = @StreamId
+                                                   WHERE {Tables.Snapshots.StreamId} = @StreamId AND (@ToVersion IS NULL OR {Tables.Snapshots.Version} <= @ToVersion)
                                                    ORDER BY {Tables.Snapshots.Version} DESC
                                                    LIMIT 1
                                                """;

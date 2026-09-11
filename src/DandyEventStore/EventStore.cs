@@ -49,9 +49,9 @@ internal sealed class EventStore(
         return envelopes.ToArray();
     }
 
-    public async Task<Snapshot?> GetLastSnapshotAsync(string streamId, long version, CancellationToken cancellationToken)
+    public async Task<Snapshot?> GetLastSnapshotAsync(string streamId, long? version, CancellationToken cancellationToken)
     {
-        var snapshotEntity = await unitOfWork.Snapshots.GetLastSnapshotAsync(streamId, version, cancellationToken);
+        var snapshotEntity = await unitOfWork.Snapshots.GetLatestSnapshotAsync(streamId, version, cancellationToken);
         if (snapshotEntity == null)
             return null;
 
